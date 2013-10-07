@@ -1,0 +1,386 @@
+import numpy as np
+import pyxrr.functions as pf
+import scipy.optimize as sopt
+import deltaf
+import mskk
+from scipy import interpolate
+
+class OlditerativeKK(object):
+    def __init__(self, cs, miller, energy, Idafs):
+        """
+            class for handling iterative Kramers-Kronig transformation which yields a
+            Kramers-Kronig pair (f', f'') that describes the Diffraction Anomalous 
+            Fine Strukture (DAFS) intensity (Idafs) measured in a certain energy range
+            near an x-ray absorption edge.
+            
+            
+            inputs:
+                cs : the crystal structure given as an unit_cell instance
+                
+                miller : the bragg reflection of interest as 3-tuple
+                
+                energy : numpy array of photon energies in electron volt
+                
+                Idafs : measured and scaled DAFS intensity
+        """
+        self.cs = cs
+        self.miller = miller
+        self.energy = energy
+        self.DAFS = Idafs
+        self.Z = {}
+        self.f0 = {}
+        self.f1 = {}
+        self.f2 = {}
+        self.f1guess = {}
+        self.f2guess = {}
+        self.f={}
+        self.ind={}
+        self.anchors = {}
+        self.debug = True
+        
+    def AddFS(self, emin, emax, dE, symbol, anchorpoints, f_given = True):
+        element = symbol.name.split("_")[1]
+        self.Z[symbol] = float(pf.get_element(element)[-1])
+        if f_given:
+            self.f1[symbol] = self.cs.f[symbol].real
+            self.f2[symbol] = self.cs.f[symbol].imag
+            #print("Using given fine structure %s"%symbol.name)
+        else:
+            self.f1[symbol], self.f2[symbol] = pf.get_f1f2_from_db(element,  self.energy - dE, table="Sasaki")
+        #self.f0[symbol] = float(-pf.get_element(element)[-1] + calc_f0(element, self.cs.q.subs(self.cs.subs)))
+        ind = (self.energy > emin) * (self.energy < emax)
+        self.ind[symbol] = ind
+        self.f1guess[symbol] = self.f1[symbol][ind]
+        self.f2guess[symbol] = self.f2[symbol][ind]
+        """
+        Elist = []
+        Anchlist = []
+        for E in anchorpoints:
+            ReAnch, ImAnch = pf.get_f1f2_from_db(element, E, table="Sasaki")
+            Elist.append(E)
+            Anchlist.append(ImAnch)
+        """
+        ReAnch, ImAnch = pf.get_f1f2_from_db(element, anchorpoints, table="Sasaki")
+        self.anchors[symbol] = (anchorpoints, ReAnch + 1j * ImAnch)
+        #self.cursym = symbol
+    
+    def GetDAFS(self):
+        self.Ffunc = self.cs.DAFS(self.energy, self.miller, f1=self.f1.copy(), f2=self.f2.copy(), func_output=True)
+        for symbol in self.cs.f.keys():
+            if symbol in self.f1:
+                self.f[symbol.name] = self.f1[symbol] + 1j * self.f2[symbol]
+            else:
+                self.f[symbol.name] = self.cs.f[symbol]
+        self.Isim = abs(self.Ffunc(**self.f))**2
+        
+    def residuals(self, newf1, symbol=None):
+        self.f[symbol.name][self.ind[symbol]] = np.array(newf1) + 1j * self.f2[symbol][self.ind[symbol]]
+        self.Isim = abs(self.Ffunc(**self.f))**2
+        #print ((self.DAFS - self.Isim)[self.ind[symbol]]).sum(), ((self.DAFS - self.Isim)).sum()
+        self.newf1 = np.array(newf1)
+        return (self.DAFS[self.ind[symbol]] - self.Isim[self.ind[symbol]])
+        
+    def residuals2(self, newf2, symbol=None):
+        self.f[symbol.name][self.ind[symbol]] = self.f1[symbol][self.ind[symbol]] + 1j * np.array(newf2)
+        self.Isim = abs(self.Ffunc(**self.f))**2
+        self.newf2 = np.array(newf2)
+        return (self.DAFS[self.ind[symbol]] - self.Isim[self.ind[symbol]])
+    
+    def evalDAFS(self):
+        for symbol in self.f1.keys():
+            self.f[symbol.name] = self.f1[symbol] + 1j * self.f2[symbol]
+        self.Isim = abs(self.Ffunc(**self.f))**2
+        return self.Isim
+    
+    def iterate(self, symbols=None, anchorsweep=False, start=None):
+        if symbols == None:
+            symbols = self.f1.keys()
+        if start == None:
+            start = dict(zip(self.f1.keys(), ["f1"] * len(symbols)))
+        elif isinstance(start, str):
+            start = dict(zip(self.f1.keys(), [start] * len(symbols)))
+        elif len(start)==1:
+            start = dict(zip(self.f1.keys(), start * len(symbols)))
+        elif not isinstance(start, dict):
+            raise ValueError("Input parameter ``start`` not understood")
+        for symbol in symbols:
+            if "Ba" in symbol.name and self.debug:
+                off = 20
+            else: 
+                off = 0
+            if start[symbol]=="f1":
+                output = sopt.fsolve(self.residuals, self.f1guess[symbol] + off, args=symbol, factor=100, full_output=1)
+                newf1 = output[0]
+                print "Res: %f"%(self.residuals(newf1, symbol)**2).sum()
+                Efalse = self.energy[self.ind[symbol]][(self.residuals(newf1, symbol)**2)>0.01]
+                print "Energies: ", Efalse
+                if "Ba" in symbol.name and self.debug:
+                    import pylab as pl
+                    
+                    for E in Efalse:
+                        ind = np.where(self.energy==E)
+                        points = 201
+                        f1test = np.linspace(0, self.f1[symbol].max()+5, points)
+                        thisf = {}
+                        for key in self.f.iterkeys():
+                            if key==symbol.name:
+                                thisf[key] = f1test + 1j*self.f[key][ind].imag*np.ones(points)
+                            else:
+                                thisf[key] = self.f[key][ind]*np.ones(points)
+                        thisI = abs(self.Ffunc(**thisf))**2
+                        print E
+                        pl.plot(f1test, self.DAFS[ind] - thisI, color=pl.rand(3), label = "%.1f"%E)
+                        
+                    pl.legend()
+                    pl.figure()
+                    pl.plot(self.energy[self.ind[symbol]], output[0], "x")
+                    pl.plot(self.energy[self.ind[symbol]], self.f1guess[symbol] + off)
+                    output = sopt.fsolve(self.residuals, self.f1guess[symbol], args=symbol, factor=100, full_output=1)
+                    pl.plot(self.energy[self.ind[symbol]], output[0], "k")
+                    output = sopt.fsolve(self.residuals, self.f1guess[symbol] - 100, args=symbol, factor=100, full_output=1)
+                    pl.plot(self.energy[self.ind[symbol]], output[0])
+                    """
+                    for off in pl.linspace(20, 40, 11):
+                        output = sopt.fsolve(self.residuals, np.ones(self.ind[symbol].sum()) * off, args=symbol, factor=100, full_output=1)
+                        pl.plot(self.energy[self.ind[symbol]], output[0], label=("%.1f"%off))
+                    """
+                    pl.show()
+                self.f[symbol.name][self.ind[symbol]] = newf1 + 1j * self.f2[symbol][self.ind[symbol]]
+                self.f1[symbol][self.ind[symbol]] = newf1
+            elif start[symbol]=="f2":
+                output = sopt.fsolve(self.residuals2, self.f2guess[symbol], args=symbol, factor=100, full_output=1)
+                newf2 = output[0]
+                print "Res: %f"%(self.residuals2(newf2, symbol)**2).sum()
+                Efalse = self.energy[self.ind[symbol]][(self.residuals2(newf2, symbol)**2)>0.01]
+                print "Energies: ", Efalse
+                if "Ba" in symbol.name and self.debug:
+                    import pylab as pl
+                    
+                    for E in Efalse:
+                        ind = np.where(self.energy==E)
+                        points = 201
+                        f2test = np.linspace(0, self.f2[symbol].max()+5, points)
+                        thisf = {}
+                        for key in self.f.iterkeys():
+                            if key==symbol.name:
+                                thisf[key] = self.f[key][ind].real*np.ones(points) + 1j * f2test
+                            else:
+                                thisf[key] = self.f[key][ind]*np.ones(points)
+                        thisI = abs(self.Ffunc(**thisf))**2
+                        print E
+                        pl.plot(f2test, self.DAFS[ind] - thisI, label = "%.1f"%E)
+                    pl.show()
+                self.f[symbol.name][self.ind[symbol]] = self.f1[symbol][self.ind[symbol]] + 1j * newf2
+                self.f2[symbol][self.ind[symbol]] = newf2
+        self.I1 = self.Isim.copy()
+        for symbol in symbols:
+            element = symbol.name.split("_")[1]
+            ax,ay = self.anchors[symbol]
+            if start[symbol]=="f1":
+                ay = ay.imag
+                thisfp = self.f1[symbol] - self.Z[symbol]
+                if anchorsweep:
+                    err = np.inf
+                    dE = float(anchorsweep)
+                    for a1 in np.arange(self.energy[0]-50, self.energy[self.ind[symbol]][0]+50, dE):
+                        for a2 in np.arange(self.energy[self.ind[symbol]][-1]-50, self.energy[-1]+50, dE):
+                            ax = np.array((a1, a2))
+                            ReAnch, ay = pf.get_f1f2_from_db(element, ax, table="Sasaki")
+                            newE, newf2 = mskk.imag(self.energy, thisfp, ax, ay, verbose=False)
+                            f2func = interpolate.interp1d(newE, newf2)
+                            newf2 = f2func(self.energy)
+                            #newerr = ((newf2[~self.ind[symbol]] - self.f2[symbol][~self.ind[symbol]])**2).sum()
+                            newerr = ((newf2[~self.ind[symbol]] - self.f2[symbol][~self.ind[symbol]])**2).sum()
+                            if newerr<err:
+                                axbest, aybest = ax, ay
+                                err = newerr
+                                self.f2[symbol][self.ind[symbol]] = f2func(self.energy[self.ind[symbol]])
+                            print axbest, ax, err
+                    self.anchors[symbol] = ([axbest], [aybest])
+                else:
+                    newE, newf2 = mskk.imag(self.energy, thisfp, ax, ay)
+                    f2func = interpolate.interp1d(newE, newf2)
+                    self.f2[symbol][self.ind[symbol]] = f2func(self.energy[self.ind[symbol]])
+                    #self.f2[symbol] = f2func(self.energy)
+            elif start[symbol]=="f2":
+                ay = ay.real
+                newE, newf1 = mskk.real(self.energy, self.f2[symbol], ax, ay)
+                f1func = interpolate.interp1d(newE, newf1 + self.Z[symbol])
+                self.f1[symbol][self.ind[symbol]] = f1func(self.energy[self.ind[symbol]])
+        if anchorsweep:
+            return self.anchors
+        allind = np.zeros(len(self.energy), dtype=bool)
+        for symbol in symbols:
+            allind += self.ind[symbol]
+        err = ((self.DAFS[allind] - self.evalDAFS()[allind])**2).sum()
+        return err, output[2]
+
+
+
+
+
+
+class IterativeKK(object):
+    def __init__(self, cs, miller, energy, Idafs, f1start=None, f2start=None):
+        """
+            class for handling iterative Kramers-Kronig transformation which yields a
+            Kramers-Kronig pair (f', f'') that describes the Diffraction Anomalous 
+            Fine Strukture (DAFS) intensity (Idafs) measured in a certain energy range
+            near an x-ray absorption edge.
+            
+            
+            inputs:
+                cs : the crystal structure given as an unit_cell instance
+                
+                miller : the bragg reflection of interest as 3-tuple
+                
+                energy : numpy array of photon energies in electron volt
+                
+                Idafs : measured and scaled DAFS intensity
+        """
+        self.cs = cs
+        self.miller = miller
+        self.energy = energy
+        self.DAFS = Idafs
+        self.Ffunc = cs.DAFS(energy, miller, f1=f1start, f2=f2start, func_output=True)
+        self.f, self.f1, self.f2 = {}, {}, {}
+        self.f1tab, self.f2tab = {}, {}
+        self.Z = {}
+        for symbol in cs.f.keys():
+            self.f1[symbol] = cs.f[symbol].real.copy()
+            self.f2[symbol] = cs.f[symbol].imag.copy()
+            self.f[symbol.name] = cs.f[symbol].copy()
+        #self.eneleft = 
+        self.Isim = abs(self.Ffunc(**self.f))**2
+        self.Isim0 = self.Isim.copy()
+        self.ind={}
+        self.ilim = {}
+        self.anchors = {}
+        self.diff = {}
+        self.debug = True
+        
+    def AddFS(self, emin, emax, symbol, anchorpoints=None):
+        element = symbol.name.split("_")[1]
+        self.Z[symbol] = float(pf.get_element(element)[-1])
+        self.f1tab[symbol], self.f2tab[symbol] = pf.get_f1f2_from_db(element, self.energy - self.cs.dE[element], table="Sasaki")
+        self.diff[symbol] = complex(self.cs.F_0.subs(self.cs.subs).n().diff(symbol))
+        ind = (self.energy > emin) * (self.energy < emax)
+        self.ind[symbol] = ind
+        
+        ileft = abs(self.energy - emin).argmin()
+        iright = abs(self.energy - emax).argmin()
+        self.ilim[symbol] = (ileft, iright)
+        
+        if anchorpoints == None:
+            #anchorpoints = [self.energy[0]+20, self.energy[-1]-50]
+            #anchorpoints = np.append(np.linspace(emin-30, emin+30, 3), 
+            #                         np.linspace(emax-30, emax+30, 3))
+            #anchorpoints = np.append(np.linspace(self.energy[0], emin, 3)[1:], 
+            #                         np.linspace(emax, self.energy[-1], 3)[:-1])
+            #anchorpoints = [emin-20, emax+50]
+            #anchorpoints = [4900]
+            pass
+        if anchorpoints == None:
+            pass
+        else:
+            f1f2func = interpolate.interp1d(self.energy, (self.f1[symbol], self.f2[symbol]), copy=False)
+            ReAnch, ImAnch = f1f2func(anchorpoints)
+            self.anchors[symbol] = (anchorpoints, ReAnch + 1j * ImAnch)
+    
+    def iterate(self, symbols=None, KK=None):
+        if KK==None:
+            KK = {}
+        E = self.energy
+        if symbols == None:
+            symbols = self.f1.iterkeys()
+        allind = np.zeros(len(E), dtype=bool)
+        for symbol in symbols:
+            if symbol in self.anchors.keys():
+                ax,ay = self.anchors[symbol]
+            else:
+                ax, ay = None, None
+            ind = self.ind[symbol]
+            f1 = self.f1[symbol]
+            f2 = self.f2[symbol]
+            allind += ind
+            if self.debug:
+                import pylab as pl
+                pl.plot(E, f1, "--")
+                pl.plot(E, f2, "--")
+            facI = self.DAFS[ind] / self.Isim[ind]
+            dF_F = np.sqrt(facI) - 1
+            dF = dF_F * self.Ffunc(**self.f)[ind]
+            df = dF / self.diff[symbol]
+            self.f[symbol.name][ind] += df
+            f1[ind] += df.real
+            f2[ind] += df.imag
+            self.F1 = self.Ffunc(**self.f)
+            self.I1 = abs(self.F1)**2
+            #err1 = ((self.DAFS[ind] - self.I1[ind])**2).sum()
+            
+            #if (abs(df.real) > abs(df.imag)).mean() > 0.5:
+            if self.debug:
+                pl.plot(E, f1)
+                pl.plot(E, f2)
+            
+            il, ir = self.ilim[symbol]
+            #if abs(df.real).sum() > abs(df.imag).sum():
+            #if "Ti" in symbol.name or "Ba" in symbol.name:
+            if KK.has_key(symbol) and KK[symbol]=="f1":
+                KK[symbol] = "f1"
+                if not ay==None:
+                    ay = ay.imag
+                """
+                ancind = abs(E - np.array(ax)[:,np.newaxis]).argmin(-1)
+                ay = f2[ancind]
+                ax = E[ancind]
+                """
+                #thisfp = f1 - self.Z[symbol]
+                thisfp = f1 - self.f1tab[symbol]
+                newE, newf2 = mskk.imag(E, thisfp, ax, ay)
+                #newE, newf2 = mskk.imag(E, thisfp)
+                #        self.linearf1[symbol] = lambda x: f1[ileft] + (emax - emin)/(f1[iright] - f1[ileft]) * (x - emin)
+                if self.debug:
+                    pl.plot(newE, newf2)
+                f2func = interpolate.interp1d(newE, newf2)
+                newf2 = f2func(E[ind])
+                newf2 += self.f2tab[symbol][ind]
+                #print newf2[0], f2[il], E[ind][0], E[il]
+                #newf2 -= newf2[0] + (newf2[-1] - newf2[0]) / (E[ind][-1] - E[ind][0]) * (E[ind] - E[ind][0])
+                #newf2 +=    f2[il] + (   f2[ir] -    f2[il]) / (E[ir] - E[il]) * (E[ind] - E[il])
+                f2[ind] = newf2
+            else:
+                KK[symbol] = "f2"
+                if not ay==None:
+                    ay = ay.real - self.Z[symbol]
+                """
+                ancind = abs(E - np.array(ax)[:,np.newaxis]).argmin(-1)
+                ay = f1[ancind]
+                ax = E[ancind]
+                """
+                newE, newf1 = mskk.real(E, f2, ax, ay)
+                newf1+= self.Z[symbol]
+                #newE, newf1 = mskk.real(E, f2)
+                if self.debug:
+                    pl.plot(newE, newf1)
+                f1func = interpolate.interp1d(newE, newf1)
+                newf1 = f1func(E[ind])
+                #print newf1[0], f1[il], E[ind][0], E[il]
+                newf1 -= newf1[0] + (newf1[-1] - newf1[0]) / (E[ind][-1] - E[ind][0]) * (E[ind] - E[ind][0])
+                newf1 +=    f1[il] + (   f1[ir] -    f1[il]) / (E[ir] - E[il]) * (E[ind] - E[il])
+                f1[ind] = newf1 # f1func(E[ind])
+            if self.debug:
+                pl.plot(E, f1)
+                pl.plot(E, f2)
+                pl.plot(ax, ay, "sk")
+                pl.xlabel("energy / eV")
+                pl.ylabel("f / electrons")
+                pl.ylim(ymax=90, ymin=0)
+                pl.grid()
+                pl.show()
+            self.f[symbol.name] = f1 + 1j * f2
+        self.Isim = abs(self.Ffunc(**self.f))**2
+        err = ((self.DAFS[allind] - self.Isim[allind])**2).sum()
+        return err, KK
+
+

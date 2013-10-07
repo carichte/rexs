@@ -1,0 +1,47 @@
+sum_formula = "LiTaO3"
+density = 7.41
+# Expansion Coefficients (Citation: J. Appl. Phys. 40, 4637 (1969); doi: 10.1063/1.1657244)
+TExp_alpha = ((1.61e-5, 1.62e-5, 0), (1.62e-5, 1.54e-5, 0), (0, 0, 0.22e-5))
+TExp_beta  = (( 7.5e-9,  5.9e-9, 0), (5.9e-9,   7.0e-9, 0), (0, 0, -5.9e-9))
+SpaceGroup = 161
+
+
+def get_cs(**kwargs):
+    import StructureTensor
+    sp = StructureTensor.sp
+    np = StructureTensor.np
+    cs = StructureTensor.unit_cell(SpaceGroup)
+    
+    cs.add_atom("Li", (0, 0, 0.2821), 1)
+    cs.add_atom("Nb", (0, 0, 0), 0)
+    cs.add_atom("O",  (0.0534, 0.3396, 0.0695), 1)
+    cs.subs[cs.a] =  5.15428
+    cs.subs[cs.c] = 13.7835
+    if kwargs.has_key("temperature"):
+        shrinkfac = np.diag((1,1,1)) \
+                    + np.array(TExp_alpha) * (kwargs["temperature"] - 298.) \
+                    + np.array(TExp_beta)  * (kwargs["temperature"] - 298.)**2
+        shrinkfac = sp.Matrix(shrinkfac)
+        """
+        for atom in cs.AU_positions.iterkeys():
+            pos = cs.B * sp.Matrix(cs.AU_positions[atom]).T
+            pos = pos.subs(cs.subs)
+            pos = shrinkfac * pos
+            pos = cs.B.inv() * pos
+            cs.AU_positions[atom] = np.array(pos.subs(cs.subs).applyfunc(sp.N))[:,0]
+        """
+        pos = sp.Matrix((cs.a, 0, 0)).subs(cs.subs)
+        pos = cs.B_0 * pos
+        pos = pos.subs(cs.subs)
+        print pos
+        pos = shrinkfac * pos
+        pos = cs.B_0.inv() * pos
+        print pos
+        a,b,c = np.array(pos.subs(cs.subs).applyfunc(sp.N))
+        cs.subs[cs.a] = a.item()
+        cs.subs[cs.c] = c.item()
+    
+    cs.get_tensor_symmetry()
+    cs.build_unit_cell()
+    
+    return cs

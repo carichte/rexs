@@ -1,0 +1,10 @@
+*.[oa]
+*.so
+*.zip
+*.pyc
+*.tar.gz
+*.tar
+*.png
+*.tgz
+trash/
+build/
