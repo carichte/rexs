@@ -2,7 +2,7 @@ import os
 import numpy as np 
 
 sum_formula = "Ho2PdSi3"
-ciffile = "HPS_D1.cif"
+ciffile = "cif/HPS_D1.cif"
 ciffile = os.path.join(os.path.split(__file__)[0], ciffile)
 #density = 4.63
 SpaceGroup = 1
