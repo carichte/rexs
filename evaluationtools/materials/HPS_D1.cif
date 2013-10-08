@@ -1,1 +1,0 @@
-../../../Literatur/Stoffsysteme/Ho2PdSi3/D1.cif

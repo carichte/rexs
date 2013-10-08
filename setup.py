@@ -6,9 +6,10 @@ import sys
 if len(sys.argv)<2:
     print("see install.txt for installation instructions.")
 
-setup( name = "pyasf", 
+setup( name = "pyrexs", 
        version = "0.1",
-       packages = ["mskk", "evaluationtools"],
+       packages = ["mskk", "evaluationtools", "evaluationtools.materials"],
+       package_data={'evaluationtools': ['materials/cif/*']},
        author = "Carsten Richter", 
        author_email = "carsten.richter@desy.de",
        description = "pyrexs - toolkit for evaluation of resonant x-ray scattering measurements.",
