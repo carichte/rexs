@@ -97,10 +97,12 @@ def list_scans(specfile):
     
     return zip(names_unique, lengths)
 
-def process_dafs_scans(specf, indizes, trapez=True, deglitch = True, detectors = [], getall = [], xiadir="", normalize=True):
+def process_dafs_scans(specf, indizes, trapez=True, deglitch=True, detectors=[],
+                       getall=[], xiadir="", normalize=True, monitor="Io"):
     """
-        loading of scans with scan number in indizes of specfile specf
-        norming of all intensities to Monitor Io
+    Processes scans from specfile ``specf'' with scan numbers given
+    in ``indizes''.
+        -> normalize of all intensities to Monitor Io
         - trapez : bool
             integration with trapez ansatz instead of standard integration
         - deglitch : bool
@@ -115,7 +117,7 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch = True, detectors =
         alldata = dict([(k,[]) for k in (["q", "theta"] + getall)])
     else:
         alldata = {}
-    col_mon = "Io"
+    monitor = "Io"
     Energy = []
     for i in indizes:
         scan = specf.select(str(i))
@@ -128,7 +130,7 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch = True, detectors =
         #colname =  scan.alllabels()
         dat = scan.data()
         Energy.append(float(scan.header("Energy")[0].split()[1][:-1]))
-        mon = dat[colname.index(col_mon)]
+        mon = dat[colname.index(monitor)]
         q = 4*np.pi*Energy[-1]/12.398 * np.sin(np.radians(dat[1]/2.))
         #q = 4*np.pi*Energy[-1]/12.398 * np.sin(np.radians(dat[0]))
         
@@ -173,7 +175,7 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch = True, detectors =
                 coldata = ndimage.median_filter(coldata, 5)
                 if col == "mca0":
                     coldata[[0, -1]] = np.median(coldata)
-            if normalize and not col==col_mon:
+            if normalize and not col==monitor:
                 coldata /= mon
             if len(getall) and col in getall:
                 alldata[col].append(coldata)
