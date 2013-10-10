@@ -93,7 +93,7 @@ def list_scans(specfile):
     
     return zip(names_unique, lengths)
 
-def process_dafs_scans(specf, indizes, trapez=True, deglitch = True, detectors = [], getall = [], xiapath=""):
+def process_dafs_scans(specf, indizes, trapez=True, deglitch = True, detectors = [], getall = [], xiadir="", normalize=True):
     """
         loading of scans with scan number in indizes of specfile specf
         norming of all intensities to Monitor Io
@@ -128,16 +128,17 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch = True, detectors =
         q = 4*np.pi*Energy[-1]/12.398 * np.sin(np.radians(dat[1]/2.))
         #q = 4*np.pi*Energy[-1]/12.398 * np.sin(np.radians(dat[0]))
         
+        
         usemca = len(filter(lambda x: x not in colname, detectors))
         if usemca:
-            xiaroi = my_scan.header('@XIAROI')
+            xiaroi = scan.header('@XIAROI')
             if xiaroi:
                 xiaroi = np.array(map(str.split, xiaroi))
                 xiaroiname = list(xiaroi[:,1])
             
             xianame = scan.header('@XIAF')
             if xianame:
-                xiapath = os.join(xiadir, xianame[0].split("/")[1])
+                xiapath = os.path.join(xiadir, xianame[0].split("/")[1])
                 xiapath = xiapath.replace("XX", "00")
             
             if os.path.isfile(xiapath):
@@ -158,7 +159,7 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch = True, detectors =
             elif xiaroi != [] and col in xiaroiname:
                 ind = xiaroiname.index(col)
                 roimin, roimax = xiaroi[ind, [3,4]].astype(int)
-                coldata = mcadata[:, roimin:roimax].sum(1)
+                coldata = mcadata[:, roimin:roimax].sum(1).astype(float)
             else:
                 raise ValueError("Detector %s not found in Scan %i"%(col, i))
                 
@@ -166,7 +167,7 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch = True, detectors =
                 coldata = ndimage.median_filter(coldata, 5)
                 if col == "mca0":
                     coldata[[0, -1]] = np.median(coldata)
-            if not col==col_mon:
+            if normalize and not col==col_mon:
                 coldata /= mon
             if len(getall) and col in getall:
                 alldata[col].append(coldata)
