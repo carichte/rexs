@@ -168,6 +168,8 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True, detectors=[],
                 ind = xiaroiname.index(col)
                 roimin, roimax = xiaroi[ind, [3,4]].astype(int)
                 coldata = mcadata[:, roimin:roimax].sum(1).astype(float)
+                if len(coldata) != len(q):
+                    coldata = coldata[:len(q)]
             else:
                 raise ValueError("Detector %s not found in Scan %i"%(col, i))
                 
