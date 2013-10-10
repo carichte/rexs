@@ -64,8 +64,12 @@ def fetch_dafs_scan(specfile, scanname):
     return result
 
 def list_scans(specfile):
+    """
+        Returns a list of 2-tuples each containing the unique scan names and
+        the number of scans having this name.
+    """
     if os.path.isfile(str(specfile)):
-        specfile = spec.Specfile("sto_az.a")
+        specfile = spec.Specfile(specfile)
     elif hasattr(specfile, "scanno"):
         pass
     else:
@@ -78,7 +82,7 @@ def list_scans(specfile):
     for i in range(num[0], num[1]+1):
         scan = specfile.select(str(i))
         comment = scan.header("Energy")
-        if len(comment):
+        if comment:
             comment = comment[0].split()
         else:
             continue
@@ -149,6 +153,8 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch = True, detectors =
                 raise ValueError("MCA File empty: %s"%xiapath)
             mcadata = edf.GetData(0)
             
+            if "mca" in getall:
+                alldata["mca"].append(mcadata.sum(0))
         
         if len(getall):
             alldata["q"].append(q)
