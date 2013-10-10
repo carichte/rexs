@@ -92,15 +92,18 @@ class mu2fluo(object):
         self.mu = et.lorentzian_filter1d(self.mu_res_tab, 2)
         self.muguess = self.mu.copy()
         # scan parameters:
-        self.p = {"omega":0., "d":np.inf, "theta":45., "scaleF":1., "om_range":0, "m":0, "n":1., "mf":0, "nf":1., "theta_fluo":45.}
-        self.pname = {"omega":"miscut",
-                      "d":"sample thickness",
-                      "theta":"bragg angle",
-                      "theta_fluo":"angle of fluorescence detector",
-                      "scaleF":"scale of fluorescence intensity",
-                      "om_range":"range of miscuts on wavy surface",
-                      "m":"slope of linear background in Bragg intensity",
-                      "n":"offset of linear background in Bragg intensity"}
+        self.p = {"omega":0., "d":np.inf, "theta":45., "om_range":0,
+                  "m":0, "n":1., "mf":0, "nf":1., "theta_fluo":45.}
+        self.pname = {
+            "omega":"miscut",
+            "d":"sample thickness",
+            "theta":"bragg angle",
+            "theta_fluo":"angle of fluorescence detector",
+            "om_range":"range of miscuts on wavy surface",
+            "m":"slope of linear background in Bragg intensity",
+            "n":"offset of linear background in Bragg intensity",
+            "mf":"slope of linear background in fluorescence intensity",
+            "nf":"offset of linear background in fluorescence intensity"}
         
         
         self.xval = np.linspace(-4, 4, 51)

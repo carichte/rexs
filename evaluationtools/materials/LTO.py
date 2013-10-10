@@ -10,7 +10,6 @@ SpaceGroup = 161
 
 
 def get_cs(**kwargs):
-    import StructureTensor
     sp = StructureTensor.sp
     np = StructureTensor.np
     cs = StructureTensor.unit_cell(SpaceGroup)

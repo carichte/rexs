@@ -14,7 +14,7 @@ from PyMca import EdfFile
 class result(object):
     def __init__(self):
         self.integrated = None
-        self.comlete = None
+        self.complete = None
         self.hkl = None
 
 
@@ -93,8 +93,11 @@ def list_scans(specfile):
     
     return zip(names_unique, lengths)
 
-def process_dafs_scans(specf, indizes, trapez=True, deglitch = True, getall = []):
-    sumdata = {"apd":[], "fluo0":[], "mca0":[], "Io":[]}
+def process_dafs_scans(specf, indizes, trapez=True, deglitch = True, detectors = [], getall = []):
+    if not detectors:
+        detectors = ["apd", "fluo0", "mca0", "Io"]
+    sumdata = dict([(k,[]) for k in detectors])
+    
     hkl = (0,0,0)
     if len(getall):
         alldata = dict([(k,[]) for k in (["q", "theta"] + getall)])
@@ -108,7 +111,9 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch = True, getall = []
             hkl = scan.hkl()
         except:
             pass
-        colname =  scan.alllabels()
+            
+        colname = scan.header("L")[0].split()[1:]
+        #colname =  scan.alllabels()
         dat = scan.data()
         Energy.append(float(scan.header("Energy")[0].split()[1][:-1]))
         mon = dat[colname.index(col_mon)]
