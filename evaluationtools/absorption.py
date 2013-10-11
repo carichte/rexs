@@ -10,7 +10,7 @@ import evaluationtools as et
 import pyxrr.functions as pf
 #import mskk
 import numpy as np
-from pyxrr import wrap4leastsq
+import wrap4leastsq
 from scipy import interpolate, ndimage, optimize
 
 class mu2fluo(object):

@@ -75,46 +75,7 @@ def lorentzian_filter1d(input, fwhm, axis = -1, output = None,
     return ndimage.correlate1d(input, weights, axis, output, mode, cval, 0)
 
 
-def plot_fio_files(root, fig=None, log=False, Cols=None):
-    """
-        Plots all .fio files that contain the string *root*.
-        
-        Arguments:
-        ----------
-        
-        fig : <class 'matplotlib.figure.Figure'>
-            matplotlib figure class to plot data into.
-        
-        log : bool
-            If True, plots in logarithmic scaling in the y axis.
-        
-        Cols : list
-            List of selected Columns to plot.
-    """
-    if not fig:
-        from pylab import figure
-        fig=figure()
-    FILEDIR=os.path.dirname(root)
-    if not FILEDIR: FILEDIR = "."
-    MyAxes = {}
-    for fioname in os.listdir(FILEDIR):
-        if root not in fioname or ".fio" not in fioname: continue
-        NextData = FIOdata(FILEDIR + "/" + fioname)
-        if not Cols:
-            NumCols = len(NextData.data[0])-1
-            Cols = range(NumCols)
-        else: NumCols = len(Cols)
-        for i in range(NumCols):
-            i+=1
-            if not MyAxes.has_key(i): MyAxes[i] = fig.add_subplot(NumCols,1,i)
-            if log: MyAxes[i].semilogy(NextData[:,0], NextData[:,Cols[i-1]])
-            else: MyAxes[i].plot(NextData[:,0], NextData[:,Cols[i-1]])
-    fig.canvas.draw()
-    #fig.canvas.show()
-    return MyAxes
-
-
-def write_header(filename, header):
+def _write_header(filename, header):
     """
         Write header (one line) to file
     """
@@ -135,7 +96,7 @@ def write_header(filename, header):
     myfile.close()
 
 
-def read_header(filename):
+def _read_header(filename):
     """
         reads only first line of file.
     """
@@ -148,8 +109,24 @@ def read_header(filename):
 def savedat(fname, data, header="", xcol=None, **kwargs):
     """
         writes data to my standard .dat ascii file type using numpy.savetxt
-        and adds a header if given. see numpy.savetxt for further inputs.
+        and adds a header if given.
         
+        Inputs:
+            fname : str
+                Path to file.
+            data : numpy.ndarray or dict
+                array or dictionary containing the data.
+                If a dictionary is given, header information is fetched
+                from the keys and ``xcol'' provides the key of independent
+                variable.
+            header : str
+                header line defining columns only if an array is given as data.
+            xcol : str
+                key of the data dictionary that refers to the independent
+                (x-) axis
+        
+        
+        see numpy.savetxt for further key-word arguments.
     """
     if isinstance(data, dict):
         if xcol==None:
@@ -163,26 +140,38 @@ def savedat(fname, data, header="", xcol=None, **kwargs):
             data = np.vstack([xval] + data.values()).T
         
     np.savetxt(fname, data, **kwargs)
-    write_header(fname, header)
+    _write_header(fname, header)
 
 
 def loaddat(fname, todict=False):
     """
-        open my standard .dat file
+        Opens my standard .dat file.
+        
+        Inputs:
+            
+            fname : str
+                Path to file.
+            todict : bool
+                If True, the data is returned in a dictionary
+                with header elements as keys and dict.x refers
+                to the x-axis, since the order is lost.
+                If False, a 2-tuple (data, header) is returned,
+                where data is an numpy.ndarray and header a string.
     """
-    try: 
+    try:
         data = np.loadtxt(fname, comments=None)
         header = ""
-        #print("No header present")
+        # No header present
     except:
         data = np.loadtxt(fname, skiprows=1)
-        header = read_header(fname)
+        header = _read_header(fname)
         cols = header.split()
         if todict and len(cols) == len(data[0]):
             ddata = datadict([(k,data[:,cols.index(k)]) for k in cols])
             ddata.x = cols[0]
-            data = ddata
-    return data, header
+            return ddata
+        else:
+            return data, header
 
 
 def PolynomialFit(x, y, anchors=None, avgrange=0, order=2, indf=None):

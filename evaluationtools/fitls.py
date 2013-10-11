@@ -4,14 +4,11 @@
 # this is part of the 'evaluationtools' set written by Carsten Richter
 # (carsten.richter@desy.de)
 #
-
-
-
-
 import numpy as np
 import os
 from scipy import ndimage, optimize, special
 import time
+import wrap4leastsq
 
 class expando(object): pass 
 
@@ -26,7 +23,6 @@ def fitls(x_m, y_m, func, guess, variables, power=1, weights=None, fitalg="least
         
         weights can be 'statistical', an array of length len(x_m) or None
     """
-    from pyxrr import wrap4leastsq
     #print hasattr(weights, "__iter__") , hasattr(weights, "__len__") , len(weights)==len(x_m)
     if weights=="statistical":
         ind = y_m>0
@@ -58,13 +54,13 @@ def fitls(x_m, y_m, func, guess, variables, power=1, weights=None, fitalg="least
     
     fitted_param = guess.copy()
     if fitalg=="leastsq":
-        fitfunction, startvalues = wrap4leastsq.wrap_for_fit_dict(residuals, guess, variables)
+        fitfunction, startvalues = wrap4leastsq.wrap_for_fit(residuals, guess, variables, unpack=False)
         output = optimize.leastsq(fitfunction, startvalues, full_output=True)
         #print output
         if output[1]==None: stddev = [np.inf for i in range(len(variables))]
         else: stddev = [np.sqrt(var) for var in output[1].diagonal()] # Kovarianzmatrix
     elif fitalg=="simplex":
-        fitfunction, startvalues = wrap4leastsq.wrap_for_fit_dict(sumofsquares, guess, variables)
+        fitfunction, startvalues = wrap4leastsq.wrap_for_fit(sumofsquares, guess, variables, unpack=False)
         output = optimize.fmin(fitfunction, startvalues, full_output=True, maxfun=1000*len(startvalues), maxiter=1000*len(startvalues))
         stddev = [np.inf for i in range(len(variables))]
     if len(variables)>1: 

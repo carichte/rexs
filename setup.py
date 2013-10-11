@@ -8,8 +8,8 @@ if len(sys.argv)<2:
 
 setup( name = "pyrexs", 
        version = "0.1",
-       packages = ["mskk", "evaluationtools", "evaluationtools.materials"],
-       package_data={'evaluationtools': ['materials/cif/*']},
+       packages = ["mskk", "evaluationtools", "evaluationtools", "materials"],
+       package_data={'materials': ['cif/*']},
        author = "Carsten Richter", 
        author_email = "carsten.richter@desy.de",
        description = "pyrexs - toolkit for evaluation of resonant x-ray scattering measurements.",
