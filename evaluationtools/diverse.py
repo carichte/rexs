@@ -10,6 +10,9 @@ import os
 from scipy import ndimage, optimize, special
 import time
 
+class datadict(dict):
+    x = None
+
 def norm(vector):
     return np.sqrt((np.array(vector)**2).sum(0))
 
@@ -157,13 +160,13 @@ def savedat(fname, data, header="", xcol=None, **kwargs):
         elif isinstance(xcol, str):
             xval = data.pop(xcol)
             header = " ".join([xcol] + data.keys())
-            data = np.vstack([xdval] + data.values()).T
+            data = np.vstack([xval] + data.values()).T
         
     np.savetxt(fname, data, **kwargs)
     write_header(fname, header)
 
 
-def loaddat(fname):
+def loaddat(fname, todict=False):
     """
         open my standard .dat file
     """
@@ -174,6 +177,11 @@ def loaddat(fname):
     except:
         data = np.loadtxt(fname, skiprows=1)
         header = read_header(fname)
+        cols = header.split()
+        if todict and len(cols) == len(data[0]):
+            ddata = datadict([(k,data[:,cols.index(k)]) for k in cols])
+            ddata.x = cols[0]
+            data = ddata
     return data, header
 
 
