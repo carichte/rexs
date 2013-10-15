@@ -14,7 +14,8 @@ class datadict(dict):
     x = None
 
 def norm(vector):
-    return np.sqrt((np.array(vector)**2).sum(0))
+    #return np.sqrt((np.array(vector)**2).sum(0))
+    return np.norm(vector)
 
 def lorentzian(x, x0, amp, w):
     return amp/(1 + ((x-x0)/w)**2)
@@ -85,8 +86,8 @@ def _write_header(filename, header):
         return
     elif not header.startswith("#"):
         header = "#" + header
-    if header.endswith("\n") or header.endswith("\r"): pass
-    else: header += os.linesep
+    header = header.strip()
+    header += os.linesep
     myfile = open(filename, "r")
     content = myfile.read()
     myfile.close()
@@ -160,7 +161,7 @@ def loaddat(fname, todict=False):
     """
     try:
         data = np.loadtxt(fname, comments=None)
-        header = ""
+        return data, ""
         # No header present
     except:
         data = np.loadtxt(fname, skiprows=1)
