@@ -97,6 +97,47 @@ def list_scans(specfile):
     
     return zip(names_unique, lengths)
 
+
+def fetch_switching_cycles(specfile):
+    if os.path.isfile(str(specfile)):
+        specfile = spec.Specfile(specfile)
+    elif hasattr(specfile, "scanno"):
+        pass
+    else:
+        raise ValueError("Input for first argument ``specfile'' not understood")
+    
+    num = specfile.list().split(":")
+    num = map(int, num)
+    motors = specfile.allmotors()
+    result = []
+    scannum = []
+    lastcommand = []
+    lastvoltage = None
+    for i in range(num[0], num[1]+1):
+        scan = specfile.select(str(i))
+        command = scan.header("S")[0].split()[2:]
+        positions = map(lambda s: s.partition(" ")[2], scan.header("P"))
+        positions = " ".join(positions)
+        positions = positions.split()
+        motorpositions = dict(zip(motors, positions))
+        voltage = float(motorpositions["AgilentSrc"])
+        if command == lastcommand and voltage==-lastvoltage and "nix" in command:
+            scannum.append(i)
+            lastvoltage = voltage
+            #last_dafs_loop_nr = 0
+            #if len(scannum)>1:
+            #    result.append(scannum)
+            #scannum = []
+            continue
+        else:
+            if len(scannum)>1:
+                result.append((abs(lastvoltage), scannum))
+            scannum = [i]
+            lastcommand = command
+            lastvoltage = voltage
+    return result
+
+
 def process_dafs_scans(specf, indizes, trapez=True, deglitch=True, detectors=[],
                        getall=[], xiadir="", normalize=True, monitor="Io"):
     """
@@ -117,7 +158,6 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True, detectors=[],
         alldata = dict([(k,[]) for k in (["q", "theta"] + getall)])
     else:
         alldata = {}
-    monitor = "Io"
     Energy = []
     for i in indizes:
         scan = specf.select(str(i))
@@ -128,12 +168,12 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True, detectors=[],
             
         colname = scan.header("L")[0].split()[1:]
         #colname =  scan.alllabels()
+        #print colname
         dat = scan.data()
         Energy.append(float(scan.header("Energy")[0].split()[1][:-1]))
         mon = dat[colname.index(monitor)]
         q = 4*np.pi*Energy[-1]/12.398 * np.sin(np.radians(dat[1]/2.))
         #q = 4*np.pi*Energy[-1]/12.398 * np.sin(np.radians(dat[0]))
-        
         
         usemca = len(filter(lambda x: x not in colname, detectors))
         if usemca:
