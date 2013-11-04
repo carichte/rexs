@@ -12,12 +12,36 @@ from scipy import ndimage, optimize, special
 import time
 from FIOdata import FIOdata
 from diverse import *
+from pyxrr.functions import get_components
+import deltaf
 
 class SDDspectrum(object):
     lambda_c = 2.4263106000088493e-2 # Comptonwellenlaenge in Angstrom
-    def __init__(self):
+    def __init__(self, composition=None, erange=None):
+        """
+            Class to model histograms obtained by energy dispersive x-ray
+            detectors (via multi channel analyzers ``mca``).
+            Fluorescence lines can be modeled with the asymmetric detector
+            response function of silicon drift diodes which goes beyond
+            the simple gaussian peak shape.
+            
+            Lines originating of the same edge are linked via fixed ratios
+            and their intensities varied accordingly to fit the measured 
+            spectra.
+            
+            
+            Optional inputs:
+                composition : str
+                    String containg all element symbols that are interesting
+                    for data analysis. E.g. a sum formula.
+                
+                erange : 2-tuple of floats
+                    2 values definingt lower and upper limit of the energy
+                    range of interest (in eV).
+        """
         self.fano = 49.686 # FANO limit des Rauschens bei 5895eV
         self.bg = 0.
+        self.preedge = 15. # width of preedge range left of edge
         self.elastic = None
         
         # Standardwerte?
@@ -26,22 +50,46 @@ class SDDspectrum(object):
         self.edges={}
         self.lines={}
         self.strengths={"elastic":1., "compton":0.2}
-    def add_edge(self, edge, name, lines, names=None, strength=1.):
+        if erange!=None and len(erange)==2:
+            self.emin, self.emax = min(erange), max(erange)
+        else:
+            self.emin, self.emax = 0, np.inf
+        if composition!=None:
+            elements = get_components(composition)[0]
+            for element in elements:
+                print element
+                transitions = deltaf.get_transition(element,  col='Direct')
+                pick = filter(lambda x: np.isfinite(transitions[x]), transitions.keys())
+                pick = filter(lambda x: transitions[x]>self.emin and transitions[x]<self.emax, pick)
+                edges = filter(lambda x: "edge" in x, pick)
+                lines = filter(lambda x: "edge" not in x, pick)
+                for edge in edges:
+                    thislines = np.array(filter(lambda s: s.startswith(edge.split()[0]), lines))
+                    thislineseV, ind = np.unique([transitions[line] for line in thislines], return_index=True)
+                    thislines = thislines[ind]
+                    thislines = map(lambda s: element + "_" + s, thislines)
+                    self.add_edge(transitions[edge], element + "_" + edge.split()[0], thislineseV, names=thislines)
+            
+        
+        
+    def add_edge(self, Eedge, name, lines, names=None, strength=1.):
         """
-            - edge: energy of absorption edge in eV
+            - Eedge: energy of absorption edge in eV
             - lines: list of energies of the resulting emission lines in eV
             - names: list of  names   of the resulting emission lines in eV (optional)
         """
-        if not hasattr(lines, "__iter__"): lines = (lines,)
+        if not hasattr(lines, "__iter__"):
+            lines = (lines,)
         if names is not None:
-            if not hasattr(names, "__iter__"): names = (names,)
+            if not hasattr(names, "__iter__"):
+                names = (names,)
             assert len(names)==len(lines), 'lines and names are not of same length'
         else:
             names = ["Line_%s%.2i"%(name, i+1) for i in range(len(lines))]
         ratios = list(np.ones(len(lines)))
         
-        self.edges[name] = edge
-        self.lines[name] = map(lambda *x: list(x), names, lines, ratios)
+        self.edges[name] = Eedge
+        self.lines[name] = zip(names, lines, ratios)
         self.strengths[name] = strength
     
     def detector_response(self, channels, E0, amp):
@@ -59,7 +107,7 @@ class SDDspectrum(object):
         if x==None: x = self.channels
         output = self.bg * np.ones(len(x))
         for edge in self.edges.keys():
-            if self.edges[edge] < self.elastic:
+            if self.edges[edge] < (self.elastic - self.preedge):
                 for line in self.lines[edge]:
                     output += self.detector_response(x, line[1], self.strengths[edge]*line[2])
         if not self.elastic==None:
@@ -69,7 +117,7 @@ class SDDspectrum(object):
         return output
     
     def set_variables(self, shape=[], strengths=[], ratios=[]):
-        """ 
+        """
             Sets the set of variables for fitting.
             Inputs:
                 - shape: list, empty or contains strings of shape parameters for
@@ -95,16 +143,21 @@ class SDDspectrum(object):
                 self.ShapeVars.append(key)
                 self.guess.append(self.p[key])
         for key in strengths:
-            if key in self.strengths.keys():
-                if (key in self.edges.keys() and self.edges[key] < self.elastic) or key in ["compton", "elastic"]:
+            if self.strengths.has_key(key):
+                if (key in self.edges.keys() and self.edges[key] < (self.elastic - self.preedge))\
+                or  key in ["compton", "elastic"]:
                     self.StrengthVars.append(key)
                     self.guess.append(self.strengths[key])
-            else: print "Warning: Edge `%s` is not defined!" %key
+            else:
+                print "Warning: Edge `%s` is not defined!" %key
         for key in ratios:
-            if (key in self.edges.keys() and self.edges[key] < self.elastic):
+            if self.edges.has_key(key)\
+            and self.edges[key] < (self.elastic - self.preedge):
                 self.RatioVars.append(self.lines[key])
-                for line in self.lines[key][1:]: # ratio of first line alsways 1
-                    self.guess.append(line[2])
+                # ratio of first line always 1:
+                self.guess.extend([line[2] for line in self.lines[key][1:]])
+            else:
+                print "Warning: Edge `%s` is not defined!" %key
     
     def fitfunction(self, *t):
         x = t[0]
@@ -119,43 +172,65 @@ class SDDspectrum(object):
                 j+=1
         return self.__call__(x)
     
-    def parse_mca(self, fname, twotheta, average=10, col=1, chmin=0, chmax=np.inf, verbose=True):
-        self.mca= FIOdata(fname, verbose=verbose)
-        self.mcadata = self.mca[:,col]
-        self.channels = (np.arange(len(self.mcadata)).astype(float)+1)
+    def parse_mca(self, data, twotheta, energy=None, col=1, chmin=0, chmax=np.inf,
+                        average=0, verbose=False):
+        """
+            Loads and processes .fio files produced by the ``online``
+            software at DESY-FS.
+            Here the data is supposed to be 1-dimensional, meaning 
+            that only one COLUMN of the file will be processed.
+            
+            Inputs:
+                fname : str or file handle
+                    Name or file handle of the .fio file to load
+                
+                twotheta : str or float
+                    Either value or motor name containing the angle 
+                    between incident and scattered beam.
+                
+                col : int
+                    Number of column that shall be processed
+                
+                chmin, chmax : int
+                    Channel limits whithin that the data will be 
+                    cropped.
+                
+                average : int
+                    Width of box filter for smoothing data in channels
+                
+                verbose : bool
+                    Talk a lot?
+        """
+        if isinstance(data, np.ndarray):
+            self.mcadata = data[:,col]
+        else:
+            self.mca= FIOdata(data, verbose=verbose)
+            self.mcadata = self.mca[:,col]
+        self.channels = np.arange(len(self.mcadata)).astype(float) + 1
         self.ind = (self.channels>chmin) * (self.channels<chmax)
         ind2 = self.mcadata < self.bg
-        self.mcadata[ind2]=self.bg
+        self.mcadata[ind2] = self.bg
         try:
             self.Iint = self.mcadata.sum() / self.mca.parameters["SAMPLE_TIME"]
             #print "Integral Intensity = %2f cps" %self.Iint
-        except:
+        except KeyError:
             self.Iint = self.mcadata.sum()
             #print "Integral Intensity = %2f counts" %self.Iint
         self.energy = (self.channels - self.p["K0"]) / self.p["c"]
-        self.mcadata = ndimage.uniform_filter1d(self.mcadata, average)
-        self.elastic = self.mca.parameters["ENERGY"]
+        if average:
+            self.mcadata = ndimage.uniform_filter1d(self.mcadata, average)
+        if energy==None and hasattr(self, "mca"):
+            try:
+                self.elastic = self.mca.parameters["ENERGY"]
+            except KeyError:
+                print("Warning: energy of incident photons could not be retrieved.")
+        else:
+            self.elastic = energy
         try: self.twotheta = float(twotheta)
         except: self.twotheta = self.mca.parameters[twotheta]
-        Lcompton = self.lambda_c * (1 - np.cos(np.radians(self.twotheta))) + 12398./self.elastic
-        self.Ecompton = 12398. / Lcompton
-        """
-        for name in self.strengths.keys():
-            if name=="elastic": 
-                C0 = int(self.p["c"] * self.elastic + self.p["K0"])
-                self.strengths["elastic"] = self.mcadata[C0]
-                #self.strengths["compton"] = self.lines[
-            elif name=="compton": continue
-            else: 
-                if self.edges[name]<self.elastic:
-                    C0 = int(self.p["c"] * self.lines[name][0][1] + self.p["K0"])
-                    self.strengths[name] = self.mcadata[C0]
-                    for line in self.lines[name][1:]: # ratio of first line always 1
-                        Ci = int(self.p["c"] * line[1] + self.p["K0"])
-                        line[2] = self.mcadata[Ci] / self.mcadata[C0]
-                else:
-                    self.strengths[name] = self.mcadata.min()
-        """
+        Lcompton = self.lambda_c * (1 - np.cos(np.radians(self.twotheta))) \
+                   + 12398./self.elastic
+        self.Ecompton = 12398. / Lcompton # Energy of compton peak
     
     def refresh(self):
         self.energy = (self.channels - self.p["K0"]) / self.p["c"]

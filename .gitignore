@@ -7,4 +7,5 @@
 *.png
 *.tgz
 trash/
+test/
 build/
