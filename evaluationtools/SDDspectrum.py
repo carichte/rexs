@@ -244,9 +244,9 @@ class SDDspectrum(object):
     
     def feed_energy(self, energy):
         energy = np.array(energy).ravel()
-        assert energy.shape == channels.shape,
+        assert energy.shape == channels.shape, \
            "Given energy spectrum has to have the same length as given mca spectrum"
-        assert hasattr(self, "channels"),
+        assert hasattr(self, "channels"), \
             "No channels defined. Run SDDspectrum.parse_mca first"
         self.energy = energy.copy()
         # channels = energy * c + K0
