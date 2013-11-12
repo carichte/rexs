@@ -4,15 +4,15 @@ SpaceGroup = 221
 
 
 def get_cs():
-    import StructureTensor
-    sp = StructureTensor.sp
-    np = StructureTensor.np
+    import pyasf
+    sp = pyasf.sp
+    np = pyasf.np
     
     delta_1 = 0
     delta_2 = 0
     delta_3 = 0
 
-    cs = StructureTensor.unit_cell(SpaceGroup)
+    cs = pyasf.unit_cell(SpaceGroup)
     
     cs.add_atom("Sr", (0,0,0), 1, dE=-4)
     cs.add_atom("Ti", (sp.S("1/2"),sp.S("1/2"),sp.S("1/2") - delta_1), 1, dE=14.5)

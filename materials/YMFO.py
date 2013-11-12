@@ -4,9 +4,9 @@ SpaceGroup = 55
 
 
 def get_cs(x=0.25, delta=1):
-    import StructureTensor
-    sp = StructureTensor.sp
-    cs = StructureTensor.unit_cell(SpaceGroup)
+    import pyasf
+    sp = pyasf.sp
+    cs = pyasf.unit_cell(SpaceGroup)
     cs.add_atom("Y", (sp.S(0.1344), sp.S(0.1687), 0), 1)
     
     cs.add_atom("FeP", (sp.S(0.3898), sp.S(0.3534), sp.S("1/2")), 0, occupancy =      x*delta) # 4h pyramidal position

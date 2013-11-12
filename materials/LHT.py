@@ -3,9 +3,9 @@ density = 1.367
 SpaceGroup = 71
 
 def get_cs():
-    import StructureTensor
-    sp = StructureTensor.sp
-    cs = StructureTensor.unit_cell(SpaceGroup)
+    import pyasf
+    sp = pyasf.sp
+    cs = pyasf.unit_cell(SpaceGroup)
     cs.add_atom("Ti", (0,0.3048,sp.S("1/2")), 0)
     cs.add_atom("O1", (0,0.2208,0), 1)
     cs.add_atom("O2", (0,0.3619,0), 1)

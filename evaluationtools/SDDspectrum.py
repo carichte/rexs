@@ -89,7 +89,8 @@ class SDDspectrum(object):
         ratios = list(np.ones(len(lines)))
         
         self.edges[name] = Eedge
-        self.lines[name] = zip(names, lines, ratios)
+        self.lines[name] = map(lambda *x: list(x), names, lines, ratios)
+        #self.lines[name] = zip(names, lines, ratios)
         self.strengths[name] = strength
     
     def detector_response(self, channels, E0, amp):
@@ -131,7 +132,9 @@ class SDDspectrum(object):
                                 line intensity ratios shall be varied
                                 (see self.lines.keys())
         """
-        if shape=="all": shape = self.p.keys()
+        if shape=="all": 
+            shape = self.p.keys()
+            shape.pop(shape.index("X"))
         if strengths=="all": strengths = self.strengths.keys()
         if ratios=="all": ratios = self.lines.keys()
         self.ShapeVars = []
@@ -181,7 +184,7 @@ class SDDspectrum(object):
             that only one COLUMN of the file will be processed.
             
             Inputs:
-                fname : str or file handle
+                data : str or file handle
                     Name or file handle of the .fio file to load
                 
                 twotheta : str or float
@@ -189,7 +192,8 @@ class SDDspectrum(object):
                     between incident and scattered beam.
                 
                 col : int
-                    Number of column that shall be processed
+                    Number of column that shall be processed if data 
+                    is 2-dimensional
                 
                 chmin, chmax : int
                     Channel limits whithin that the data will be 
@@ -202,7 +206,10 @@ class SDDspectrum(object):
                     Talk a lot?
         """
         if isinstance(data, np.ndarray):
-            self.mcadata = data[:,col]
+            if data.ndim == 1:
+                self.mcadata = data.copy()
+            elif data.ndim == 2:
+                self.mcadata = data[:,col]
         else:
             self.mca= FIOdata(data, verbose=verbose)
             self.mcadata = self.mca[:,col]
@@ -213,12 +220,12 @@ class SDDspectrum(object):
         try:
             self.Iint = self.mcadata.sum() / self.mca.parameters["SAMPLE_TIME"]
             #print "Integral Intensity = %2f cps" %self.Iint
-        except KeyError:
+        except:
             self.Iint = self.mcadata.sum()
             #print "Integral Intensity = %2f counts" %self.Iint
         self.energy = (self.channels - self.p["K0"]) / self.p["c"]
         if average:
-            self.mcadata = ndimage.uniform_filter1d(self.mcadata, average)
+            self.mcadata = ndimage.uniform_filter1d(self.mcadata.astype(float), average)
         if energy==None and hasattr(self, "mca"):
             try:
                 self.elastic = self.mca.parameters["ENERGY"]
@@ -234,6 +241,19 @@ class SDDspectrum(object):
     
     def refresh(self):
         self.energy = (self.channels - self.p["K0"]) / self.p["c"]
+    
+    def feed_energy(self, energy):
+        energy = np.array(energy).ravel()
+        assert energy.shape == channels.shape,
+           "Given energy spectrum has to have the same length as given mca spectrum"
+        assert hasattr(self, "channels"),
+            "No channels defined. Run SDDspectrum.parse_mca first"
+        self.energy = energy.copy()
+        # channels = energy * c + K0
+        c = (self.channels[-1] - self.channels[0]) / (energy[-1] - energy[0])
+        K0 = self.channels[0] - c * energy[0]
+        self.p.update(dict(c=c, K0=K0))
+        
     
     def do_fit(self, verbose=False):
         assert hasattr(self, "guess"), "No set of variables defined. Run self.set_variables() first."

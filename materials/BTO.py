@@ -4,15 +4,15 @@ SpaceGroup = 99
 
 
 def get_cs():
-    import StructureTensor
-    sp = StructureTensor.sp
-    np = StructureTensor.np
+    import pyasf
+    sp = pyasf.sp
+    np = pyasf.np
     
     delta_1 = sp.Symbol("delta_Ti", real=True)
     delta_2 = sp.Symbol("delta_O1", real=True)
     delta_3 = sp.Symbol("delta_O2", real=True)
 
-    cs = StructureTensor.unit_cell(SpaceGroup)
+    cs = pyasf.unit_cell(SpaceGroup)
     
     cs.add_atom("Ba", (0,0,0), 1, dE=-4)
     cs.add_atom("Ti", (sp.S("1/2"),sp.S("1/2"),sp.S("1/2") - delta_1), 1, dE=14.5)

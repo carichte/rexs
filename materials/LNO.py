@@ -9,9 +9,9 @@ TExp.alpha = ((1.44e-5, 1.54e-5, 0), (1.54e-5, 1.59e-5, 0), (0, 0, 0.75e-5))
 TExp.beta  = (( 7.1e-9,  5.3e-9, 0), (5.3e-9,   4.9e-9, 0), (0, 0, -7.7e-9))
 
 def get_cs(**kwargs):
-    import StructureTensor
-    sp = StructureTensor.sp
-    cs = StructureTensor.unit_cell(SpaceGroup)
+    import pyasf
+    sp = pyasf.sp
+    cs = pyasf.unit_cell(SpaceGroup)
     
     cs.add_atom("Li", (0, 0, 0.2829), 1)
     cs.add_atom("Nb", (0, 0, 0), 0)

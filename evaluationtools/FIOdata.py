@@ -130,16 +130,9 @@ class FIOdata(object):
         """
             Rewritten to handle columns names in FIOdata.colname
         """
-        try:
-            return self.data[indices]
-        except:
-            if hasattr(indices, "__iter__"):
-                for i in range(len(self.colname)):
-                    if indices[1].lower() in self.colname[i].lower():
-                        indices = list(indices)
-                        indices[1] = i
-                        indices = tuple(indices)
-                        break
+        if isinstance(indices, str) and indices in self.colname:
+            return self.data[:,self.colname.index(indices)]
+        else:
             return self.data[indices]
     def __repr__(self):
         return self.comment
@@ -171,13 +164,14 @@ class FIOdata(object):
             Normalizes all columns to a column specified by ``col`` and
             deletes column ``col``
         """
-        try: col = int(col)
-        except:
-            for i in range(len(self.colname)):
-                if col.lower() in self.colname[i].lower():
-                    col = i
-                    break
-            col = int(col)
+        if col in self.colname:
+            col = self.colname.index(col)
+        else:
+            try: col = int(col)
+            except:
+                collow = map(str.lower, self.colname)
+                thiscol = filter(lambda s: col.lower() in s, collow)
+                col = collow.index(thiscol[0])
         for i in range(len(self.colname)):
             if i !=col and i!=0:
                 self.data[:,i] /= self.data[:,col]

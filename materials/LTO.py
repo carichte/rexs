@@ -10,9 +10,9 @@ SpaceGroup = 161
 
 
 def get_cs(**kwargs):
-    sp = StructureTensor.sp
-    np = StructureTensor.np
-    cs = StructureTensor.unit_cell(SpaceGroup)
+    sp = pyasf.sp
+    np = pyasf.np
+    cs = pyasf.unit_cell(SpaceGroup)
     
     cs.add_atom("Li", (0, 0, 0.2821), 1, assume_complex=True)
     cs.add_atom("Ta", (0, 0, 0), 0, assume_complex=True)

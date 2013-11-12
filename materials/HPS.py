@@ -22,12 +22,12 @@ def add_layer(cs, label, zoffset=0):
 
 
 def get_cs(stack = None):
-    import StructureTensor
-    sp = StructureTensor.sp
+    import pyasf
+    sp = pyasf.sp
     if stack==None:
-        cs = StructureTensor.unit_cell(ciffile)
+        cs = pyasf.unit_cell(ciffile)
     else:
-        cs = StructureTensor.unit_cell(1)
+        cs = pyasf.unit_cell(1)
         for i in range(len(stack)):
             add_layer(cs, stack[i], float(i)/len(stack))
         

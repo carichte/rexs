@@ -34,6 +34,13 @@ def pvoigt(x, x0, amp, w, y0=0, eta=0.5, feta=None):
 def kasten(x, w):
     return (x>(-w/2.)) * (x<(w/2.))
 
+def calc_q(twotheta, energy):
+    """
+        Returns the momentum transfer for given energy (eV) and
+        scattering angle (degree) in inverst Angstroems (A-1)
+    """
+    return 4*np.pi*energy/12398. * np.sin(np.radians(twotheta/2.))
+
 
 def lorentzian_filter1d(input, fwhm, axis = -1, output = None,
                       mode = "reflect", cval = 0.0):

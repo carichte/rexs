@@ -24,6 +24,10 @@ def fitls(x_m, y_m, func, guess, variables, power=1, weights=None, fitalg="least
         weights can be 'statistical', an array of length len(x_m) or None
     """
     #print hasattr(weights, "__iter__") , hasattr(weights, "__len__") , len(weights)==len(x_m)
+    if not isinstance(x_m, np.ndarray):
+        x_m = np.array(x_m)
+    if not isinstance(y_m, np.ndarray):
+        y_m = np.array(y_m)
     if weights=="statistical":
         ind = y_m>0
         counts = y_m/y_m[ind].min()
