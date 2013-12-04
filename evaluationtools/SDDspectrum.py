@@ -213,7 +213,7 @@ class SDDspectrum(object):
         else:
             self.mca= FIOdata(data, verbose=verbose)
             self.mcadata = self.mca[:,col]
-        self.channels = np.arange(len(self.mcadata)).astype(float) + 1
+        self.channels = np.arange(len(self.mcadata)).astype(float)
         self.ind = (self.channels>chmin) * (self.channels<chmax)
         ind2 = self.mcadata < self.bg
         self.mcadata[ind2] = self.bg
@@ -244,10 +244,10 @@ class SDDspectrum(object):
     
     def feed_energy(self, energy):
         energy = np.array(energy).ravel()
-        assert energy.shape == channels.shape, \
+        if not hasattr(self, "channels"):
+            self.channels = np.arange(len(energy))
+        assert energy.shape == self.channels.shape, \
            "Given energy spectrum has to have the same length as given mca spectrum"
-        assert hasattr(self, "channels"), \
-            "No channels defined. Run SDDspectrum.parse_mca first"
         self.energy = energy.copy()
         # channels = energy * c + K0
         c = (self.channels[-1] - self.channels[0]) / (energy[-1] - energy[0])

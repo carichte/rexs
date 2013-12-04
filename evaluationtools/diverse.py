@@ -182,6 +182,32 @@ def loaddat(fname, todict=False):
             return data, header
 
 
+def get_period(x, y, lookat = "diff", tolerance=1e-6, verbose=False):
+    """
+        simple function to retrieve the period of a curve f(x) = y
+    """
+    
+    if lookat=="diff":
+        y = np.diff(y)
+    snr = 20.
+    nnd = 1
+    period = np.array((0,1))
+    while nnd==1 or (period.std()/period.mean())>tolerance:
+        ind = y>y.max()/snr
+        if verbose: 
+            print ind.sum(), y.max(),
+        if ind.sum()<2:
+            print("Warning: no periodicity found")
+            return None
+        nnd = np.diff(np.arange(len(y))[ind]).min()
+        snr = np.sqrt(snr)
+        xmax = x[ind]
+        period = np.unique(np.diff(xmax))
+        if verbose: 
+            print snr, nnd, period
+    return period.mean()
+    
+
 def PolynomialFit(x, y, anchors=None, avgrange=0, order=2, indf=None):
     """
         Returns a fitted polynomial.
@@ -245,6 +271,7 @@ def PolynomialFit(x, y, anchors=None, avgrange=0, order=2, indf=None):
         poly = sum([vopt[i]*x**(N - 1 - i) for i in range(N)])
     
     return poly
+
 
 class TempExpansion(object):
     """
