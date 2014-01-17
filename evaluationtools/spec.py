@@ -147,7 +147,6 @@ def fetch_switching_cycles(specfile):
         if command == lastcommand and voltage==-lastvoltage and "nix" in command:
             scannum.append(specfile.scanno)
             lastvoltage = voltage
-            #last_dafs_loop_nr = 0
             #if len(scannum)>1:
             #    result.append(scannum)
             #scannum = []

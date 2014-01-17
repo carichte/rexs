@@ -57,7 +57,7 @@ class SDDspectrum(object):
         if composition!=None:
             elements = get_components(composition)[0]
             for element in elements:
-                print element
+                #print element
                 transitions = deltaf.get_transition(element,  col='Direct')
                 pick = filter(lambda x: np.isfinite(transitions[x]), transitions.keys())
                 pick = filter(lambda x: transitions[x]>self.emin and transitions[x]<self.emax, pick)

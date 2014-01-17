@@ -187,3 +187,30 @@ def average_dat_xye(include, exclude=chr(0), path=os.curdir):
         num+=1
     #if not sumonly: data[:,1:]/=num
     return data, header
+
+
+def rebin(x, y, weights=None, bins=None):
+    """
+    
+        Function that averages subsequent datasets via histogramming. The data
+        does not have to be present for repeatingly the same values of the
+        independent variable and does not have to be ordered. Therefore, a
+        rebinning to a new equi-distant x-axis takes place. 
+        
+    """
+    x = np.ravel(x)
+    y = np.ravel(y)
+    if bins==None:
+        bins = (x.max()-x.min())/float(np.diff(sorted(x)).max())
+        bins = int(np.floor(bins))
+    if weights==None:
+        weights = np.ones(len(x))
+    y, newx = np.histogram(x, bins=bins, weights=y)
+    num, newx = np.histogram(x, bins=bins, weights=weights)
+    ind = num > 0
+    y = y[ind]/num[ind]
+    dx = x[1] - x[0]
+    x = x[1:] - dx
+    x = newx[ind]
+    return x, y
+

@@ -15,7 +15,7 @@ class datadict(dict):
 
 def norm(vector):
     #return np.sqrt((np.array(vector)**2).sum(0))
-    return np.norm(vector)
+    return np.linalg.linalg.norm(vector)
 
 def lorentzian(x, x0, amp, w):
     return amp/(1 + ((x-x0)/w)**2)
@@ -263,7 +263,7 @@ def PolynomialFit(x, y, anchors=None, avgrange=0, order=2, indf=None):
         anchors = np.array([x[ind].mean() for ind in indizes])
         yi      = np.array([y[ind].mean() for ind in indizes])
         
-        print anchors, yi
+        #print anchors, yi
         N = len(indizes)
         v0 =  [0.] * (N - 1) + [1.]
         res = lambda v: sum([v[i]*anchors**(N - 1 - i) for i in range(N)]) - yi
