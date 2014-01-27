@@ -82,6 +82,7 @@ def fitls(x_m, y_m, func, guess, variables, power=1, weights=None, fitalg="least
     result.Rval = abs(y_m - y_s).sum()/abs(y_m).sum()
     result.ysim = y_s
     result.yguess = func(x_m, **guess)
+    result.func = lambda x: func(x, **fitted_param)
     return result
     
 
