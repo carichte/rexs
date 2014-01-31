@@ -202,12 +202,13 @@ def rebin(x, y, weights=None, bins=None, xmin=None, xmax=None):
     ind = (x>=xmin) * (x<=xmax)
     x = x[ind]
     y = np.ravel(y)[ind]
-    weights = np.ravel(weights)[ind]
     if bins==None:
-        bins = (x.max()-x.min())/float(np.diff(pl.sort(x)).max())
+        bins = (x.max()-x.min())/np.diff(pl.sort(x)).max()
         bins = int(np.floor(bins))
     if weights==None:
         weights = np.ones(len(x))
+    else:
+        weights = np.ravel(weights)[ind]
     y, newx = np.histogram(x, bins=bins, weights=y)
     num, newx = np.histogram(x, bins=bins, weights=weights)
     ind = num > 0
