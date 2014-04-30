@@ -12,7 +12,7 @@ layertypes = ("a", "b", "c", "d")
 def add_layer(cs, label, zoffset=0):
     if label.lower() not in layertypes:
         raise ValueError("Layer with label %s not supported"%label)
-    fname = os.path.join(os.path.split(__file__)[0], "%s.txt"%label.upper())
+    fname = os.path.join(os.path.split(__file__)[0], "cif/HPS_%s.txt"%label.upper())
     layer = np.loadtxt(fname, dtype=str)
     for atom in layer:
         label, x, y, z = atom

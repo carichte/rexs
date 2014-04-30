@@ -166,10 +166,16 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True, detectors=[],
     Processes scans from specfile ``specf'' with scan numbers given
     in ``indizes''.
         -> normalize of all intensities to Monitor Io
+        -> return as dictionary integrated values and optionally complete 
+           maps
+        
+        Inputs:
         - trapez : bool
             integration with trapez ansatz instead of standard integration
         - deglitch : bool
             using median-filter for deglitching
+        - detectors : list
+            list of detectors to process
     """
     if not detectors:
         detectors = ["apd", "fluo0", "mca0", "Io"]

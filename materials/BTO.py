@@ -14,7 +14,7 @@ def get_cs():
 
     cs = pyasf.unit_cell(SpaceGroup)
     
-    cs.add_atom("Ba", (0,0,0), 1, dE=-4)
+    cs.add_atom("Ba", (0,0,0), 1, dE=-2)
     cs.add_atom("Ti", (sp.S("1/2"),sp.S("1/2"),sp.S("1/2") - delta_1), 1, dE=14.5)
     cs.add_atom("O1", (sp.S("1/2"),sp.S("1/2"),0 + delta_2), 1)
     cs.add_atom("O2", (sp.S("1/2"),0,sp.S("1/2") + delta_3), 1)

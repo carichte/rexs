@@ -189,7 +189,8 @@ def average_dat_xye(include, exclude=chr(0), path=os.curdir):
     return data, header
 
 
-def rebin(x, y, weights=None, bins=None, xmin=None, xmax=None):
+def rebin(x, y, weights=None, bins=None, xmin=None, xmax=None,
+          discard_empty=False):
     """
     
         Function that averages subsequent datasets via histogramming. The data
@@ -199,6 +200,10 @@ def rebin(x, y, weights=None, bins=None, xmin=None, xmax=None):
         
     """
     x = np.ravel(x)
+    if xmin==None:
+        xmin = x.min()
+    if xmax==None:
+        xmax = x.max()
     ind = (x>=xmin) * (x<=xmax)
     x = x[ind]
     y = np.ravel(y)[ind]
@@ -211,10 +216,12 @@ def rebin(x, y, weights=None, bins=None, xmin=None, xmax=None):
         weights = np.ravel(weights)[ind]
     y, newx = np.histogram(x, bins=bins, weights=y)
     num, newx = np.histogram(x, bins=bins, weights=weights)
+    dx = newx[1] - newx[0]
+    x = newx[1:] - dx/2.
+    y = y/num
     ind = num > 0
-    y = y[ind]/num[ind]
-    dx = x[1] - x[0]
-    x = x[1:] - dx
-    x = newx[ind]
+    if not ind.all() and discard_empty:
+        y = y[ind]
+        x = x[ind]
     return x, y
 

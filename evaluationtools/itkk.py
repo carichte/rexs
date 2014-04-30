@@ -5,6 +5,8 @@ import deltaf
 import mskk
 from scipy import interpolate
 import pylab as pl
+import pickle
+import os
 
 class IterativeKK(object):
     def __init__(self, cs, miller, energy, Idafs, f1start=None, f2start=None):
@@ -50,17 +52,19 @@ class IterativeKK(object):
         element = symbol.name.split("_")[1]
         self.Z[symbol] = deltaf.elements.Z[element]
         #self.f1tab[symbol], self.f2tab[symbol] = pf.get_f1f2_from_db(element, self.energy - self.cs.dE[element], table="Sasaki")
-        E, ind = deltaf.get_energies(element, emin, emax, fwhm_ev=w)
+        E, ind = deltaf.get_energies(element, self.energy[0], 
+                                              self.energy[-1], fwhm_ev=w)
         eedge = E[ind]
         lw = min(max(abs(emax-eedge), abs(eedge-emin))*2./w, 200.)
         if f1func==None:
+            #if os.path.isfile(".itkk_f1_%s.dmp")
             f1 = deltaf.getfquad(element, E, w, f1f2='f1', lw=lw) + self.Z[symbol]
-            self.f1func[symbol] = interpolate.UnivariateSpline(E, f1, k=3, s=0)
+            self.f1func[symbol] = interpolate.UnivariateSpline(E, f1, k=1, s=0)
         else:
             self.f1func[symbol] = f1func
         if f2func==None:
             f2 = deltaf.getfquad(element, E, w, f1f2='f2', lw=lw)
-            self.f2func[symbol] = interpolate.UnivariateSpline(E, f2, k=3, s=0)
+            self.f2func[symbol] = interpolate.UnivariateSpline(E, f2, k=1, s=0)
         else:
             self.f2func[symbol] = f2func
         self.diff[symbol] = complex(self.cs.F_0.subs(self.cs.subs).n().diff(symbol))
@@ -78,7 +82,7 @@ class IterativeKK(object):
             ReAnch, ImAnch = f1f2func(anchorpoints)
             self.anchors[symbol] = (anchorpoints, ReAnch + 1j * ImAnch)
     
-    def iterate(self, symbols=None, KK=None):
+    def iterate(self, symbols=None, KK=None, overshoot=1):
         if KK==None:
             KK = {}
         E = self.energy
@@ -97,7 +101,7 @@ class IterativeKK(object):
             facI = self.DAFS[ind] / self.Isim[ind]
             dF_F = np.sqrt(facI) - 1
             dF = dF_F * self.Ffunc(**self.f)[ind]
-            df = dF / self.diff[symbol]
+            df = dF / self.diff[symbol] * overshoot
             self.f[symbol.name][ind] += df
             f1[ind] += df.real
             f2[ind] += df.imag
@@ -111,10 +115,12 @@ class IterativeKK(object):
                 pl.plot(E, f2)
             
             il, ir = self.ilim[symbol]
+            """
             if abs(df.real).sum() > abs(df.imag).sum():
                 KK[symbol] = "f1"
             else:
                 KK[symbol] = "f2"
+            """
             #if "Ti" in symbol.name or "Ba" in symbol.name:
             if KK.has_key(symbol) and KK[symbol]=="f1":
                 KK[symbol] = "f1"

@@ -137,6 +137,7 @@ def savedat(fname, data, header="", xcol=None, **kwargs):
         see numpy.savetxt for further key-word arguments.
     """
     if isinstance(data, dict):
+        data = data.copy()
         if xcol==None:
             raise ValueError("If dictionary is given, the 1st column (xcol) has to be specified")
         if isinstance(xcol, dict):
@@ -146,12 +147,13 @@ def savedat(fname, data, header="", xcol=None, **kwargs):
             xval = data.pop(xcol)
             header = " ".join([xcol] + data.keys())
             data = np.vstack([xval] + data.values()).T
-        
+    elif isinstance(data, (tuple, list)):
+        data = np.vstack((data)).T
     np.savetxt(fname, data, **kwargs)
     _write_header(fname, header)
 
 
-def loaddat(fname, todict=False):
+def loaddat(fname, todict=False, skiprows=0):
     """
         Opens my standard .dat file.
         
@@ -168,10 +170,10 @@ def loaddat(fname, todict=False):
     """
     try:
         data = np.loadtxt(fname, comments=None)
-        return data, ""
+        return data[skiprows:], ""
         # No header present
     except:
-        data = np.loadtxt(fname, skiprows=1)
+        data = np.loadtxt(fname, skiprows=1+skiprows)
         header = _read_header(fname)
         cols = header.split()
         if todict and len(cols) == len(data[0]):
