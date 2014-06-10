@@ -9,9 +9,7 @@ import numpy as np
 import os
 from scipy import ndimage, optimize, special
 import time
-
-class datadict(dict):
-    x = None
+import scantype
 
 def norm(vector):
     #return np.sqrt((np.array(vector)**2).sum(0))
@@ -153,7 +151,7 @@ def savedat(fname, data, header="", xcol=None, **kwargs):
     _write_header(fname, header)
 
 
-def loaddat(fname, todict=False, skiprows=0):
+def loaddat(fname, parse=True, skiprows=0, **kwargs):
     """
         Opens my standard .dat file.
         
@@ -161,25 +159,24 @@ def loaddat(fname, todict=False, skiprows=0):
             
             fname : str
                 Path to file.
-            todict : bool
-                If True, the data is returned in a dictionary
-                with header elements as keys and dict.x refers
-                to the x-axis, since the order is lost.
+            parse : bool
+                If True, the data is returned in a scan1d object
+                with header elements as fields and first element refers
+                to the x-axis after conversion. 
                 If False, a 2-tuple (data, header) is returned,
                 where data is an numpy.ndarray and header a string.
     """
     try:
-        data = np.loadtxt(fname, comments=None)
+        data = np.loadtxt(fname, comments=None, **kwargs)
         return data[skiprows:], ""
         # No header present
     except:
-        data = np.loadtxt(fname, skiprows=1+skiprows)
+        data = np.loadtxt(fname, skiprows=1+skiprows, **kwargs)
         header = _read_header(fname)
         cols = header.split()
-        if todict and len(cols) == len(data[0]):
-            ddata = datadict([(k,data[:,cols.index(k)]) for k in cols])
-            ddata.x = cols[0]
-            return ddata
+        if parse and len(cols) == data.shape[1]:
+            scan = scantype.scan1d(cols, data)
+            return scan
         else:
             return data, header
 

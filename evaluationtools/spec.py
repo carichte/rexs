@@ -45,9 +45,16 @@ class SPECfile(object):
         self.scanno = None
         self.scan = None
         
+        #self.filename = self.specfile.fileheader("F")[0].split()[1]
     def __iter__(self):
         self.scanno = self.first - 1
         return self
+        
+    #def __iter__(self):
+    #    return iter(self.specfile)
+    
+    def get_filename(self):
+        return self[self.first].fileheader("F")[0].split()[1]
     
     def __len__(self):
         return self.length
@@ -58,6 +65,7 @@ class SPECfile(object):
                                               %type(scanno).__name__)
         if scanno < self.first or scanno > self.last:
             raise IndexError("scan index out of range")
+        self.scanno = scanno
         self.scan = self.specfile.select("%i"%scanno)
         return self.scan
     
@@ -65,12 +73,13 @@ class SPECfile(object):
         if self.scanno < self.last:
             self.scanno += 1
             return self.__getitem__(self.scanno)
-        else: 
+        else:
             raise StopIteration
 
 
 def fetch_dafs_scan(specfile, scanname):
-    specfile = SPECfile(specfile)
+    if not isinstance(specfile, SPECfile):
+        specfile = SPECfile(specfile)
     
     last_dafs_loop_nr = 0
     result = []
@@ -97,7 +106,7 @@ def fetch_dafs_scan(specfile, scanname):
             continue
         else:
             last_dafs_loop_nr = dafs_loop_nr
-            scannum.append(specfile.scanno)
+            scannum.append(specfile.scan.number())
     
     if len(scannum)>1:
         result.append(scannum)
@@ -110,7 +119,9 @@ def list_scans(specfile):
         Returns a list of 2-tuples each containing the unique scan names and
         the number of scans having this name.
     """
-    specfile = SPECfile(specfile)
+    if not isinstance(specfile, SPECfile):
+        specfile = SPECfile(specfile)
+    
     scannames = []
     for scan in specfile:
         comment = scan.header("Energy")
@@ -131,7 +142,8 @@ def list_scans(specfile):
 
 
 def fetch_switching_cycles(specfile):
-    specfile = SPECfile(specfile)
+    if not isinstance(specfile, SPECfile):
+        specfile = SPECfile(specfile)
     motors = specfile.motornames
     result = []
     scannum = []
@@ -160,12 +172,12 @@ def fetch_switching_cycles(specfile):
     return result
 
 
-def process_dafs_scans(specf, indizes, trapez=True, deglitch=True, detectors=[],
-                       getall=[], xiadir="", normalize=True, monitor="Io"):
+def process_dafs_scans(specf, indizes, trapez=True, deglitch=True, 
+                       detectors=[], getall=[], xiadir="", monitor=None,
+                       energyunit="keV", stitch=False):
     """
     Processes scans from specfile ``specf'' with scan numbers given
     in ``indizes''.
-        -> normalize of all intensities to Monitor Io
         -> return as dictionary integrated values and optionally complete 
            maps
         
@@ -180,6 +192,8 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True, detectors=[],
     if not detectors:
         detectors = ["apd", "fluo0", "mca0", "Io"]
     sumdata = dict([(k,[]) for k in detectors])
+    if not hasattr(specf, "specfile"):
+        specf = SPECfile(specf)
     
     hkl = (0,0,0)
     if len(getall):
@@ -188,7 +202,9 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True, detectors=[],
         alldata = {}
     Energy = []
     for i in indizes:
-        scan = specf.select(str(i))
+        scan = specf[i]
+        if stitch:
+            scan2 = specf[i+1]
         try:
             hkl = scan.hkl()
         except:
@@ -198,10 +214,17 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True, detectors=[],
         #colname =  scan.alllabels()
         #print colname
         dat = scan.data()
+        if stitch:
+            print dat.shape, scan2.data().shape
+            dat = np.hstack((dat, scan2.data()))
         Energy.append(float(scan.header("Energy")[0].split()[1][:-1]))
-        mon = dat[colname.index(monitor)]
-        q = 4*np.pi*Energy[-1]/12.398 * np.sin(np.radians(dat[1]/2.))
-        #q = 4*np.pi*Energy[-1]/12.398 * np.sin(np.radians(dat[0]))
+        if monitor!=None:
+            mon = dat[colname.index(monitor)]
+        if energyunit=="keV":
+            q = 4*np.pi*Energy[-1]/12.398 * np.sin(np.radians(dat[1]/2.))
+        elif energyunit=="eV":
+            q = 4*np.pi*Energy[-1]/12398. * np.sin(np.radians(dat[1]/2.))
+            #q = 4*np.pi*Energy[-1]/12.398 * np.sin(np.radians(dat[0]))
         
         usemca = len(filter(lambda x: x not in colname, detectors))
         if usemca:
@@ -245,7 +268,7 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True, detectors=[],
                 coldata = ndimage.median_filter(coldata, 5)
                 if col == "mca0":
                     coldata[[0, -1]] = np.median(coldata)
-            if normalize and not col==monitor:
+            if monitor!=None and col!=monitor:
                 coldata /= mon
             if len(getall) and col in getall:
                 alldata[col].append(coldata)
@@ -263,6 +286,8 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True, detectors=[],
             alldata[key] = np.array(alldata[key])
     res = DAFS_result(data, alldata, hkl)
     return res
+
+
 
 def fetch_fast_pscan(specpath):
     if os.path.isfile(str(specpath)):
