@@ -9,6 +9,7 @@ from average import *
 from diverse import *
 from FIOdata import *
 from SDDspectrum import *
+from scantype import *
 from energy_calibration import *
 from fitls import *
 import absorption
