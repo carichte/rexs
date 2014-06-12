@@ -78,6 +78,7 @@ class scan1d(object):
         
         self.normalized = None
         
+<<<<<<< HEAD
     def from_specscan(scan):
         return scan1d(scan.alllabels(), scan.data())
     
@@ -116,7 +117,6 @@ class scan1d(object):
 
     __getattr__ = __getitem__
     __setattr__ = __setitem__
-    
     
     def __dir__(self):
         return self.__dict__.keys() + dir(scan1d) + self.fields
