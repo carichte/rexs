@@ -1,4 +1,4 @@
-pyrexs
+rexs
 ======
 
-pyrexs - toolkit for evaluation of resonant x-ray scattering measurements
+rexs - toolkit for evaluation of resonant x-ray scattering measurements
