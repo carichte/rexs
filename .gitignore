@@ -5,6 +5,7 @@
 *.tar.gz
 *.tar
 *.png
+*/test*.py
 *.tgz
 trash/
 test/
