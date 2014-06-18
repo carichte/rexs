@@ -5,8 +5,8 @@
 *.tar.gz
 *.tar
 *.png
-*/test*.py
 *.tgz
+mskk/test/
 trash/
 test/
 build/

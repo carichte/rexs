@@ -78,7 +78,6 @@ class scan1d(object):
         
         self.normalized = None
         
-<<<<<<< HEAD
     def from_specscan(scan):
         return scan1d(scan.alllabels(), scan.data())
     

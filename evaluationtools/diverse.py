@@ -177,7 +177,7 @@ def loaddat(fname, parse=True, skiprows=0, **kwargs):
         header = _read_header(fname)
         cols = header.split()
         if parse and len(cols) == data.shape[1]:
-            scan = scantype.scan1d(cols, data)
+            scan = scantype.scan1d(data, cols)
             return scan
         else:
             return data, header
