@@ -10,8 +10,10 @@ import evaluationtools as et
 import pyxrr.functions as pf
 #import mskk
 import numpy as np
-import wrap4leastsq
-from scipy import interpolate, ndimage, optimize
+from wrap4leastsq import wrap_for_fit
+from scipy import interpolate, optimize
+import deltaf
+
 
 class mu2fluo(object):
     """
@@ -25,68 +27,75 @@ class mu2fluo(object):
         
     """
     const = 10135467.657934014 # 2*eV/c/hbar
-    def __init__(self, composition, resatom, energy, ene_fluo, density=1., dE=0., table="Sasaki"):
+    def __init__(self, composition, resatom, energy, emission_energy, 
+                       density, dE=0., Eedge=None, table="Sasaki"):
         """
             Initialize instance to simulate fluorescence.
             The sample composition must be known and a resonant atom has to be assigned.
             
             inputs:
-                composition : string
+                *composition : string
                     sum formula of the sample material
-                resatom : string
-                    symbol of the resonantly excited atom
-                energy : numpy.array
+                *resatom : string, int
+                    symbol or number of the resonantly excited atom
+                *energy : numpy.array
                     energy values - independent values for all methods
                     in eV
-                ene_fluo : float
+                *emission_energy : float
                     fluorescence line energy in eV
-                density : float
+                *density : float
                     density of the sample compound in g/cm^3
                 dE : float
                     edge shift compared to isolated atom
+                Eedge : float
+                    Edge energy (eV). Will be fetched from database by default.
                 table : database for x-ray optical constants
                 
                 
-                
-                
         """
+        if isinstance(resatom, int):
+            resatom = deltaf.elements.Symbols[resatom]
         assert(resatom in composition), "Resonant atom not found in composition."
+        
+        assert (np.diff(energy) > 0).all(), "Need monotonically increasing energy values"
+        
         self.composition = composition
         self.density = density
         self.energy = energy
         self.resatom = resatom
         self.table=table
         self.dE = dE
-        self.beta_nonres = pf.get_optical_constants(density, composition, energy - dE, table=table, feff={resatom:0})[1]
-        self.beta_T = pf.get_optical_constants(density, composition, energy - dE, table=table)[1]
+        self.beta_nonres = pf.get_optical_constants(density, composition, 
+                                energy - dE, table=table, feff={resatom:0})[1]
+        self.beta_tot = pf.get_optical_constants(density, composition, 
+                                energy - dE, table=table)[1]
         self.weights = np.ones(len(energy))
-        self.DAFS = None
-        self.mu_nonres = self.beta_nonres * self.const * energy # nonresonant part of absorption
-        self.mu_T = self.beta_T * self.const * energy # total absorption
-        self.mu_fluo = pf.get_optical_constants(density, composition, ene_fluo, table=table)[1] * self.const * ene_fluo
-        self.mu_res_tab = self.mu_T - self.mu_nonres # resonant part of absorption
-        try:
-            iedge = np.diff(self.mu_res_tab).argmax()
-            self.Eedge = energy[iedge]
-            print("Found edge at %.1f eV"%self.Eedge)
-        except:
-            iedge=-1
-            print("Could not find edge in data")
+        self.DAFScalc = None
         
-        if iedge!=-1:
-            def parabola(x, l, m, n):
-                return n + m*x + l*x**2
-            
-            xfit = np.log(energy[:iedge])
-            yfit = np.log(self.mu_res_tab[:iedge])
-            
-            popt, pcov =  optimize.curve_fit(parabola, xfit, yfit, p0=(0,-3.7, 1.))
-            
-            self.mu_res_tab -= np.exp(parabola(np.log(energy), *popt)) # only lowest shell absorption
-            self.mu_nonres += np.exp(parabola(np.log(energy), *popt))
-        else:
-            self.mu_res_tab -= mu_res_tab.min()
-            self.mu_nonres += mu_res_tab.min()
+        self.mu_nonres = self.beta_nonres * self.const * energy # nonresonant part of absorption
+        self.mu_tot = self.beta_tot * self.const * energy # total absorption
+        self.mu_fluo = pf.get_optical_constants(density, composition, emission_energy, table=table)[1] * self.const * emission_energy
+        self.mu_res_tab = self.mu_tot - self.mu_nonres # resonant part of absorption
+        
+        if Eedge == None:
+            edges = deltaf.get_edge(resatom).values()
+            edges = filter(lambda E: (E > energy[0]) * (E < energy[-1]), edges)
+            if len(edges)>1:
+                print("Found multiple edges in energy range."
+                      "Using lowest (first) one.")
+            Eedge = edges[0]
+            print("Using energy of edge at %.1f eV"%Eedge)
+        
+        self.Eedge = Eedge
+        
+        ind = energy < (Eedge-5)
+        
+        parabola = et.PolynomialFit(np.log(energy), 
+                                    np.log(self.mu_res_tab), 
+                                    indf=ind)
+        
+        self.mu_res_tab -= np.exp(parabola) # only lowest shell absorption
+        self.mu_nonres  += np.exp(parabola)
         
         self.mumax = self.mu_res_tab.max()
         self.mu = et.lorentzian_filter1d(self.mu_res_tab, 2)
@@ -112,6 +121,11 @@ class mu2fluo(object):
         
     
     def getomega(self, omega=None, om_range=None):
+        """
+            Generates a gaussian distribution of omega values according to
+            the om_range input argument.
+            Returns a f(omega), omega tuple.
+        """
         if omega==None:
             omega = self.p["omega"]
         if om_range==None:
@@ -135,101 +149,132 @@ class mu2fluo(object):
         return parts, omega
     
     def relfluo(self, mu_res=None, **kwargs):
+        """
+            Calculates relative Fluorescence from given resonant part of \
+            absorption coefficient (mu_res). If not given, self.mu is taken per
+            default. 
+            keyword arguments: 
+                - all elements of self.p dictionary
+        """
         if mu_res == None:
             mu_res = self.mu
         mu_res = abs(mu_res)
-        self.p.update(dict([i for i in kwargs.iteritems() if self.p.has_key(i[0])]))
+        self.p.update(dict([i for i in kwargs.iteritems() if i[0] in self.p]))
         parts, omega = self.getomega()
         
-        s_in = np.sin(np.radians(self.p["theta"] + omega)) # sine of incoming beam angle
+        s_in = np.sin(np.radians(self.p["theta"] + omega))
+        # sine of incoming beam angle
         if self.p.has_key("theta_fluo"):
             s_ou = np.sin(np.radians(self.p["theta_fluo"]))
         else:
             s_ou = np.sin(np.radians(self.p["theta"] - omega))
         
         
-        Int =  parts * mu_res / (mu_res + self.mu_nonres + s_in/s_ou*self.mu_fluo) \
-               * (1 - np.exp(-((self.mu_nonres + mu_res)/s_in + self.mu_fluo/s_ou) * self.p["d"]))
+        Int = parts * mu_res \
+              / (mu_res + self.mu_nonres + s_in/s_ou*self.mu_fluo) \
+              * (1 - np.exp(-((self.mu_nonres + mu_res)/s_in \
+                             + self.mu_fluo/s_ou) * self.p["d"]))
+        
         return Int.sum(0)
     
     def getmu(self, Ifluo=None, muguess=None, **kwargs):
+        """
+            Fit absorption coefficient for given geometry to measured 
+            fluorescence ``Ifluo'' and return total absorption coefficient.
+        """
         if Ifluo==None:
             Ifluo = self.Ifluo
         else:
             self.Ifluo = Ifluo
-        self.p.update(dict([i for i in kwargs.iteritems() if self.p.has_key(i[0])]))
+        self.p.update(dict([i for i in kwargs.iteritems() if i[0] in self.p]))
         
         if muguess == None:
             muguess = self.muguess
-            #muguess = self.mu_res_tab.max()*Ifluo
-        #self.bg = self.p["m"] * (self.energy - self.energy[0]) + self.p["n"] # lin Untergrund
-        #self.bgfluo = abs(self.p["scaleF"]) * self.bg**self.p["c"] / self.bg.mean()
-        self.bgfluo = self.p["mf"] * (self.energy - self.energy[0]) + self.p["nf"] # lin Untergrund
-        self.mu = abs(optimize.fsolve(lambda x: (self.relfluo(x) * self.bgfluo - Ifluo)**2, muguess))
         
-        self.mu_T = self.mu + self.mu_nonres
-        return self.mu_T
+        self.bgfluo = self.p["mf"] * (self.energy - self.energy[0]) \
+                    + self.p["nf"] # lin background
+        
+        resfunc = lambda x: (self.relfluo(x) * self.bgfluo - Ifluo)**2
+        self.mu = abs(optimize.fsolve(resfunc, muguess))
+        
+        self.mu_tot = self.mu + self.mu_nonres
+        return self.mu_tot
     
-    def getf2(self):
-        beta_T = self.mu_T / self.const / self.energy
+    def getf2(self, mu_tot=None):
+        """
+            Returns imaginary part of scattering amplitude ``f'' for resonant
+            atom and given composition.
+        """
+        if mu_tot==None:
+            mu_tot = self.mu_tot
+        
+        beta_tot = mu_tot / self.const / self.energy
         elements, amount = pf.get_components(self.composition)
         weights = [pf.get_element(element)[1]/1000. for element in elements]
-        beta_T *= (np.array(amount)*np.array(weights)).sum()
-        beta_T /= pf.electron_radius/(2*np.pi) * (pf.keV_A*1e-7/self.energy)**2 * self.density*1000. * pf.avogadro
+        beta_tot *= (np.array(amount)*np.array(weights)).sum()
+        beta_tot /= pf.electron_radius/(2*np.pi) \
+                    * (pf.keV_A*1e-7/self.energy)**2 \
+                    * self.density*1000. * pf.avogadro
         for i in range(len(elements)):
             if elements[i]==self.resatom:
                 ires = i
                 continue
-            f1, f2 = np.array(pf.get_f1f2_from_db(elements[i], self.energy - self.dE, table=self.table))
-            beta_T  -= f2 * amount[i]
-        self.f2 = beta_T / amount[ires]
-        return f2
+            f1, f2 = np.array(pf.get_f1f2_from_db(elements[i], 
+                                                  self.energy - self.dE, 
+                                                  table=self.table))
+            beta_tot  -= f2 * amount[i]
+        
+        self.f2 = beta_tot / amount[ires]
+        return self.f2
     
-    def AbsBragg(self, mu_T=None, pol="sigma", **kwargs):
+    def AbsBragg(self, mu_tot=None, pol="sigma", **kwargs):
         """
             Calculates absorption in Bragg geometry.
             
             All necessary inputs are taken from the mu2fluo instance.
             Optionally they can be overwritten by passing to the function:
                 
-                mu_T : np.array
+                mu_tot : np.array
                        total absorption coefficient of the material
                 
                 pol :  polarization of the x-rays
                 
                 The kwargs are all content of the self.p geometry parameters.
         """
-        self.p.update(dict([i for i in kwargs.iteritems() if self.p.has_key(i[0])]))
+        self.p.update(dict([i for i in kwargs.iteritems() if i[0] in self.p]))
         if pol=="sigma":
             LP = 1.
         else:
             pass #not yet
         parts, omega = self.getomega()
         
-        self.bg = self.p["m"] * (self.energy - self.energy[0]) + self.p["n"] # lin Untergrund
+        # lin background:
+        self.bg = self.p["m"] * (self.energy - self.energy[0]) + self.p["n"] 
+        
         Q = LP
-        if mu_T==None:
-            mu_T = self.getmu()
+        if mu_tot==None:
+            mu_tot = self.getmu()
         t_om = np.tan(np.radians(omega))
         t_th = np.tan(np.radians(self.p["theta"]))
         s_in = np.sin(np.radians(omega + self.p["theta"]))
         
-        Int = parts * Q / (2*mu_T) * (1 - t_om/t_th) * (1 - np.exp(-2*mu_T*self.p["d"]/s_in/(1 - t_om/t_th)))
+        Int = parts * Q / (2*mu_tot) * (1 - t_om/t_th) \
+            * (1 - np.exp(-2*mu_tot*self.p["d"]/s_in/(1 - t_om/t_th)))
         Int = Int.sum(0)
         Int *= self.bg / Int[0]
         return Int
     
     def residuals(self, **p):
-        self.p.update(dict([i for i in p.iteritems() if self.p.has_key(i[0])]))
+        self.p.update(dict([i for i in p.iteritems() if i[0] in self.p]))
         
         for key in ["d"]:
             self.p[key] = abs(self.p[key])
         
         self.Abs = self.AbsBragg()
-        if self.DAFS==None:
+        if self.DAFScalc == None:
             res1 = (self.Abs - self.IBragg) * self.weights
         else:
-            res1 = (self.IBragg / self.Abs - self.DAFS) * self.weights
+            res1 = (self.IBragg / self.Abs - self.DAFScalc) * self.weights
         
         if self.muweights.sum()>0.:
             res2 = (self.mu_res_tab - self.mu) * self.muweights / self.mumax
@@ -248,15 +293,22 @@ class mu2fluo(object):
             return res
         
     def fitit(self, IBragg, variables, fitalg="leastsq"):
+        """
+            Fits the calculated DAFS (self.DAFScalc) to the measured Bragg 
+            intensity (IBragg) by varying the geometry parameters in 
+            self.p
+        """
         self.fitalg = fitalg
         self.IBragg = IBragg
         self.variables = variables
         self.err = np.inf
-        func, startval = wrap4leastsq.wrap_for_fit(self.residuals, self.p, variables)
+        func, startval = wrap_for_fit(self.residuals, self.p, variables)
         if self.fitalg == "simplex":
-            output = optimize.fmin(func, startval, full_output=True)#, maxfun=1000*len(startval), maxiter=1000*len(startval))
+            output = optimize.fmin(func, startval, full_output=True)
+                   #, maxfun=1000*len(startval), maxiter=1000*len(startval))
         else:
-            output = optimize.leastsq(func, startval, full_output=True, ftol=2**-20, xtol=2**-20)
+            output = optimize.leastsq(func, startval, full_output=True, 
+                                      ftol=2**-20, xtol=2**-20)
         param = output[0]
         return param
         
@@ -266,6 +318,7 @@ class mu2fluo(object):
 def fluo_to_mu(composition, density, energy, fluorescence, order=1, dE=None,
                full_output=True, table="Sasaki"):
     """
+        DEPRECATED--
         Fits a given fluorescence curve to the tabulated absorption 
         coefficient of any material for a given energy in the x-ray regime
         given in eV.

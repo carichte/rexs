@@ -27,7 +27,8 @@ def standard_normal(x):
 def pvoigt(x, x0, amp, w, y0=0, eta=0.5, feta=None):
     if feta!=None:
         eta = special.erfc(-feta)/2.
-    return y0+amp*(eta/(1+((x-x0)/w)**2)+(1-eta)*np.exp(-np.log(2)*((x-x0)/w)**2))
+    return y0 + amp *    (eta  / (1+((x-x0)/w)**2) 
+                     + (1-eta) * np.exp(-np.log(2)*((x-x0)/w)**2))
 
 def kasten(x, w):
     return (x>(-w/2.)) * (x<(w/2.))

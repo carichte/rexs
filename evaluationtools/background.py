@@ -10,12 +10,13 @@ from scipy import ndimage
 
 
 
-def BackgroundXRD(pattern, span=20, ftol=1e-4, maxiter=2500, nsigma=1, verbose=False):
+def BackgroundXRD(pattern, span=20, ftol=1e-4, maxiter=2500, nsigma=1, 
+                  verbose=False):
     """
         Function to remove Background from a powder XRD pattern
         
         Input:
-            pattern : 1D array
+            pattern : 1D numpy.ndarray
                 intensity values
             span : int
                 half width of smoothing window in channels
@@ -29,9 +30,10 @@ def BackgroundXRD(pattern, span=20, ftol=1e-4, maxiter=2500, nsigma=1, verbose=F
             verbose : bool
                 print extra output?
         
-        The algorithm is a small modification of the one described by Sergio Bruckner in:
-        J. Appl. Cryst. (2000). 33, 977-979 
-        http://dx.doi.org/10.1107/S0021889800003617
+        The algorithm is a small modification of the one described by 
+        Sergio Bruckner in:
+            J. Appl. Cryst. (2000). 33, 977-979 
+            http://dx.doi.org/10.1107/S0021889800003617
     """
     pattern = pattern.copy()
     
@@ -42,7 +44,8 @@ def BackgroundXRD(pattern, span=20, ftol=1e-4, maxiter=2500, nsigma=1, verbose=F
     
     pleft = pattern[:span].min()
     pright = pattern[-span:].min()
-    pattern = np.append(np.ones(span)*pleft, np.append(pattern, np.ones(span)*pright))
+    pattern = np.append(np.ones(span)*pleft, 
+                        np.append(pattern, np.ones(span)*pright))
     err = np.inf
     derr= 1.
     i=0
@@ -50,7 +53,8 @@ def BackgroundXRD(pattern, span=20, ftol=1e-4, maxiter=2500, nsigma=1, verbose=F
         #if not ((i+1)%100):
         #    print "median"
         #    pattern =  ndimage.median_filter(pattern, 3)
-        smoothpattern = ndimage.uniform_filter1d(pattern, size=(2*span+1), mode="reflect")
+        smoothpattern = ndimage.uniform_filter1d(pattern, size=(2*span+1),
+                                                 mode="reflect")
         newerr=((smoothpattern - pattern)**2).sum()
         ind = (pattern + nsigma*np.sqrt(pattern))>smoothpattern
         pattern[ind]=smoothpattern[ind]

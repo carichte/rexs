@@ -136,9 +136,9 @@ class scan1d(object):
         for i in xrange(self.numcols):
             if i !=col and i!=0:
                 if action=="divide":
-                    self.data[i] /= self.data[:,col]
+                    self.data[i] /= self.data[col]
                 elif action=="multiply":
-                    self.data[i] *= self.data[:,col]
+                    self.data[i] *= self.data[col]
         
         self.normalized = col
     

@@ -7,7 +7,6 @@
 from __future__ import print_function
 import numpy as np
 import os
-from scipy import ndimage, optimize, special
 import time
 import locale
 import StringIO
