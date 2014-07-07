@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+#----------------------------------------------------------------------
+# Description:
+# Author: Carsten Richter <carsten.richter@desy.de>
+# Created at: Mo 7. Mar 16:44:56 CEST 2013
+# Computer: haso227r 
+# System: Linux 3.13.0-30-generic on x86_64
+#
+# Copyright (c) 2014 Carsten Richter  All rights reserved.
+#----------------------------------------------------------------------
+import os
+import pylab as pl
+import evaluationtools as et
+#!/usr/bin/env python
 """
     The Module provides functions for performing a kramers-kronig transform
     on given data of the real or imaginary part of the susceptibility or 
