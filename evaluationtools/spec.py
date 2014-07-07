@@ -26,8 +26,8 @@ class SPECfile(object):
         elif hasattr(specfile, "scanno"):
             self.specfile = specfile
         else:
-            raise ValueError("""Input for first argument 
-                                ``specfile'' not understood""")
+            raise ValueError("Input for first argument "
+                             "``specfile'' not understood")
         num = self.specfile.list().split(":")
         num = map(int, num)
         self.first = num.pop(0)
@@ -293,7 +293,7 @@ def fetch_fast_pscan(specpath):
     if os.path.isfile(str(specpath)):
         sf = spec.Specfile(specpath)
     else:
-        raise ValueError("Input for first argument ``specfile'' not understood")
+        raise ValueError("File not found:%s%s"%(os.linesep, specpath))
     
     master, scannum = specpath.split("_fast_")
     scannum = int(scannum.strip(".spec"))
