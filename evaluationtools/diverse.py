@@ -103,14 +103,22 @@ def _write_header(filename, header):
     myfile.close()
 
 
-def _read_header(filename):
+def _read_header(filename, comment="#"):
     """
         reads only first line of file.
     """
     myfile = open(filename, "r")
-    header = myfile.readline()
+    output = ""
+    while True:
+        header = myfile.readline()
+        if not header:
+            break
+        elif header[0]!=comment:
+            break
+        else:
+            output = header.strip("\r\n%s"%comment)
     myfile.close()
-    return header.strip("\r\n#")
+    return output
 
 
 def savedat(fname, data, header="", xcol=None, **kwargs):
@@ -154,7 +162,7 @@ def savedat(fname, data, header="", xcol=None, **kwargs):
     _write_header(fname, header)
 
 
-def loaddat(fname, parse=True, skiprows=0, **kwargs):
+def loaddat(fname, parse=True, skiprows=0, comment="#", **kwargs):
     """
         Opens my standard .dat file.
         
@@ -175,7 +183,7 @@ def loaddat(fname, parse=True, skiprows=0, **kwargs):
         # No header present
     except:
         data = np.loadtxt(fname, skiprows=1+skiprows, **kwargs)
-        header = _read_header(fname)
+        header = _read_header(fname, comment=comment)
         cols = header.split()
         if parse and len(cols) == data.shape[1]:
             scan = scantype.scan1d(data, cols)
