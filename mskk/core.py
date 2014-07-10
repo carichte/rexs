@@ -99,11 +99,14 @@ def real(om, imag, anc_om=None, anc_re=None, verbose=True, corr=True):
     result += prefac * integrate.trapz(integrand, dx=dom, axis=0)
     
     if len(anc_om)==0 and corr:
-        #print "adding corr"
         omleft = om_prim[0].item() #- dom
         omrigh = om_prim[-1].item() #+ dom
-        result -= prefac * (imag[0]  * np.arctanh((omleft/om).astype(complex)).real \
-                          - imag[-1] * np.arctanh((omrigh/om).astype(complex)).real)
+        if corr==1:
+            result -= prefac/om * (omleft*imag[0]  * np.arctanh((omleft/om).astype(complex)).real \
+                                 - omrigh*imag[-1] * np.arctanh((omrigh/om).astype(complex)).real)
+        elif corr==2:
+            result -= prefac * (imag[0]  * np.arctanh((omleft/om).astype(complex)).real \
+                             -  imag[-1] * np.arctanh((omrigh/om).astype(complex)).real)
     return om, -result
 
 

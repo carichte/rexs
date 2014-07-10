@@ -218,6 +218,7 @@ def get_energies(element, emin, emax, fwhm_ev=1e-4, eedge = None, num=100):
         ``num``.
     """
     assert emax>emin, "emax must be larger than emin."
+    assert emin>0,    "emin must be larger than 0."
     fwhm_ev = max(abs(fwhm_ev), 1e-6)
     try: Z = int(element)
     except: Z = elements.Z[element]
@@ -225,6 +226,11 @@ def get_energies(element, emin, emax, fwhm_ev=1e-4, eedge = None, num=100):
         return deltaf.clcalc(Z, E)[0]
     if eedge == None:
         eedge = .5 * (emin + emax)
+        trans = get_transition(element, col="Theory")
+        trans = [trans[k] for k in trans if "edge" in k]
+        trans = np.array(trans)
+        ind = np.argmin(abs(eedge - trans))
+        eedge = trans[ind]
     eedge = float(fmin(f1func, (eedge,)))
     print "Found edge at %g"%eedge
     expmin = np.floor(np.log10(fwhm_ev))
@@ -238,7 +244,7 @@ def get_energies(element, emin, emax, fwhm_ev=1e-4, eedge = None, num=100):
     energy = np.append(-ewing[::-1], ecenter)
     energy = np.append(energy, ewing)
     energy += eedge
-    energy = energy[energy>0]
+    energy = energy[energy>(emin/2.)]
     try:
         iedge = float(np.where(energy==eedge)[0])
     except:
@@ -246,13 +252,14 @@ def get_energies(element, emin, emax, fwhm_ev=1e-4, eedge = None, num=100):
     return energy, iedge
 
 
-def subtract_smooth(energy, element, f1=None, f2=None, fwhm=5., edge=None):
+def get_smooth(energy, element, f1=None, f2=None, fwhm=5., edge=None,
+               weights=None):
     """
-        Subtracts the smooth part either of the real (f1) or the imaginary
+        Returns the smooth part either of the real (f1) or the imaginary
         (f2) part of the x-ray dispersion correction of the scattering
         amplitude f.
         The smooth part is negative for f1 and positive for f2 and 
-        f(E) -> 0 for E -> inf.
+        f1(E) -> 0 for E -> inf.
     """
     edges = get_edge(element)
     if edge in edges:
@@ -274,10 +281,10 @@ def subtract_smooth(energy, element, f1=None, f2=None, fwhm=5., edge=None):
         return scale*func(E-E0)
     
     
-    
     width = min(abs(energy[0] - eedge), abs(energy[-1] - eedge))
-    weights = np.ones(len(energy))
-    weights[5:-5]/= 10.
+    if weights==None:
+        weights = np.ones(len(energy))
+        weights[5:-5]/= 10.
     guess = dict(E0=0, scale=1)
     if f1 != None:
         E0m = energy[f1.argmin()]

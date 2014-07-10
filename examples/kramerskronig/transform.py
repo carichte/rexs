@@ -14,15 +14,22 @@ import mskk
 
 # Example how to use the Kramers Kronig Transformation
 
+# correction if bad behavior on the borders, but may cause const. offset of result
+corr=2
+
 data = et.loaddat("sto_f2.dat")
+#data[1]*=2
 pl.plot(data[0], data[1], label="f2 measured")
 
-f1 = mskk.transform("Ti", data[0], f2=data[1], edge="K")
+KKtrans = mskk.Transform(data[0], "Ti", edge="K")
+
+f1 = KKtrans.transform(f2=data[1], corr=corr)
 pl.plot(data[0], f1, label="f1 transformed")
 
-f2 = mskk.transform("Ti", data[0], f1=f1, edge="K")
+f2 = KKtrans.transform(f1=f1, corr=corr)
 pl.plot(data[0], f2, label="f2 transformed")
 
+pl.plot(data[0], data[1]-f2, label="diff")
 
 pl.xlabel("Energy (eV)")
 pl.ylabel("f (electrons)")
