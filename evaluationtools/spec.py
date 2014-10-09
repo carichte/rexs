@@ -8,12 +8,13 @@
 import numpy as np
 import os
 
+
 from scipy import ndimage, integrate
 from PyMca import specfile as spec
 from PyMca import EdfFile
-from collections import namedtuple
-
-DAFS_result   = namedtuple('DAFS_result', ['integrated', 'complete', 'hkl'])
+from collections import namedtuple, defaultdict, OrderedDict
+import diverse
+DAFS_result   = namedtuple('DAFS_result', ['integrated', 'complete', 'hkl', 'scanlist', 'exposure'])
 pscan_result = namedtuple('pscan_result',
                          ['time', 'voltage', 'counts', 'period', 'bins',
                           'interval', 'offset', 'duty', 'loops', 'amplitude',
@@ -122,7 +123,7 @@ def list_scans(specfile):
     if not isinstance(specfile, SPECfile):
         specfile = SPECfile(specfile)
     
-    scannames = []
+    scannames = OrderedDict()
     for scan in specfile:
         comment = scan.header("Energy")
         if comment:
@@ -131,14 +132,14 @@ def list_scans(specfile):
             continue
         try:
             this_scanname = comment[comment.index("Scan-Name")+1]
+            if this_scanname in scannames:
+                scannames[this_scanname] += 1
+            else:
+                scannames[this_scanname] = 1
         except IndexError:
             this_scanname = ""
-        scannames.append(this_scanname)
     
-    names_unique = np.unique(scannames)
-    lengths = map(scannames.count, names_unique)
-    
-    return zip(names_unique, lengths)
+    return scannames
 
 
 def fetch_switching_cycles(specfile):
@@ -174,7 +175,7 @@ def fetch_switching_cycles(specfile):
 
 def process_dafs_scans(specf, indizes, trapez=True, deglitch=True, 
                        detectors=[], getall=[], xiadir="", monitor=None,
-                       energyunit="keV", stitch=False):
+                       energyunit="keV", stitch=False, col2theta="2-THETA-V", xaxis="q", bg=0):
     """
     Processes scans from specfile ``specf'' with scan numbers given
     in ``indizes''.
@@ -196,21 +197,21 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True,
         specf = SPECfile(specf)
     
     hkl = (0,0,0)
-    if len(getall):
-        alldata = dict([(k,[]) for k in (["q", "theta"] + getall)])
-    else:
-        alldata = {}
+    alldata = defaultdict(list)
     Energy = []
     for i in indizes:
         scan = specf[i]
+        if not scan.alllabels():
+            continue
         if stitch:
             scan2 = specf[i+1]
         try:
             hkl = scan.hkl()
         except:
             pass
-            
+        
         colname = scan.header("L")[0].split()[1:]
+        motorpos = dict(zip(specf.motornames, scan.allmotorpos()))
         #colname =  scan.alllabels()
         #print colname
         dat = scan.data()
@@ -220,12 +221,23 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True,
         Energy.append(float(scan.header("Energy")[0].split()[1][:-1]))
         if monitor!=None:
             mon = dat[colname.index(monitor)]
-        if energyunit=="keV":
-            q = 4*np.pi*Energy[-1]/12.398 * np.sin(np.radians(dat[1]/2.))
-        elif energyunit=="eV":
-            q = 4*np.pi*Energy[-1]/12398. * np.sin(np.radians(dat[1]/2.))
-            #q = 4*np.pi*Energy[-1]/12.398 * np.sin(np.radians(dat[0]))
         
+        if col2theta in motorpos:
+            tth = motorpos[col2theta] * np.ones_like(dat[0])
+        elif col2theta in colname:
+            tth = dat[colname.index(col2theta)]
+        else:
+            raise ValueError("Column for 2-theta not found:%s"%col2theta)
+        
+        if energyunit=="keV":
+            q = 4*np.pi*Energy[-1]/12.398 * np.sin(np.radians(tth/2.))
+        elif energyunit=="eV":
+            q = 4*np.pi*Energy[-1]/12398. * np.sin(np.radians(tth/2.))
+            #q = 4*np.pi*Energy[-1]/12.398 * np.sin(np.radians(dat[0]))
+        if xaxis=="q":
+            x = q
+        else:
+            x = dat[xaxis]
         usemca = len(filter(lambda x: x not in colname, detectors))
         if usemca:
             xiaroi = scan.header('@XIAROI')
@@ -251,19 +263,26 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True,
         
         if len(getall):
             alldata["q"].append(q)
+            alldata["x"].append(x)
             alldata["theta"].append(dat[1]/2.)
-        for col in sumdata.keys():
+        for col in sumdata:
             if col in colname:
                 coldata = dat[colname.index(col)]
             elif xiaroi != [] and col in xiaroiname:
                 ind = xiaroiname.index(col)
                 roimin, roimax = xiaroi[ind, [3,4]].astype(int)
                 coldata = mcadata[:, roimin:roimax].sum(1).astype(float)
-                if len(coldata) != len(q):
-                    coldata = coldata[:len(q)]
+                if len(coldata) != len(x):
+                    coldata = coldata[:len(x)]
             else:
                 raise ValueError("Detector %s not found in Scan %i"%(col, i))
-                
+            if bg==1:
+                coldata -= coldata.min()
+            elif bg==2:
+                poly = diverse.PolynomialFit(x, coldata, 
+                                        anchors=[x[0], x[-1]], 
+                                        avgrange=(x[-1]-x[0])/10.)
+                coldata -= poly
             if deglitch and not "apd" in col:
                 coldata = ndimage.median_filter(coldata, 5)
                 if col == "mca0":
@@ -274,17 +293,21 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True,
                 alldata[col].append(coldata)
             dx = dat[0,1] - dat[0,0]
             if trapez:
-                sumdata[col].append(integrate.trapz(coldata, x=q))
+                sumdata[col].append(integrate.trapz(coldata, x=x))
             else:
                 sumdata[col].append(coldata.sum()*dx)
     data = {"Energy":Energy}
     data.update(sumdata)
     for key in data.keys():
         data[key] = np.array(data[key])
-    if len(getall):
-        for key in alldata.keys():
+    if len(getall) and len(alldata["x"])>1:
+        for key in alldata:
+            dl = len(alldata[key][-2]) - len(alldata[key][-1])
+            if dl > 0:
+                alldata[key][-1] = np.append(alldata[key][-1], np.zeros(dl))
             alldata[key] = np.array(alldata[key])
-    res = DAFS_result(data, alldata, hkl)
+    exposure = float(scan.header("S")[0].split()[-1])
+    res = DAFS_result(data, alldata, hkl, indizes, exposure)
     return res
 
 

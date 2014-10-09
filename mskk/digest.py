@@ -54,17 +54,26 @@ class Transform(object):
         The smooth part is negative for f1 and positive for f2 and 
         f1(E) -> 0 for E -> inf.
     """
-    def __init__(self, energy, element, edge=None, fwhm=5., weights=None):
+    def __init__(self, energy, element, edges=(None,), fwhm=5., weights=None):
         self.energy = energy
+        if not hasattr(edges, "__iter__"):
+            edges = (edges,)
+        Esmooth = []
+        for i, edge in enumerate(edges):
+            edgetab = deltaf.get_edge(element)
+            if edge!=None and edge in edgetab:
+                eedge = edgetab[edge]
+            else:
+                eedge = None
+            smth = deltaf.get_energies(element, energy[0], energy[-1], 
+                                       fwhm, eedge)
+            Esmooth.append(smth[0])
+            if i==0:
+                Eedge = smth[0][smth[1]]
         
-        edges = deltaf.get_edge(element)
-        if edge in edges:
-            eedge = edges[edge]
-        else:
-            eedge = None
-        Esmooth, iedge = deltaf.get_energies(element, energy[0], energy[-1], 
-                                             fwhm, eedge)
-        self.Eedge = Esmooth[iedge]
+        self.Eedge = Eedge
+        Esmooth = np.hstack(Esmooth)
+        Esmooth.sort()
         self.Esmooth = Esmooth
         f1s = deltaf.getfquad(element, Esmooth, fwhm, f1f2 = "f1",
                               kernel="normal")

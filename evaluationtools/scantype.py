@@ -14,6 +14,7 @@
 import os
 import numpy as np
 import diverse
+import re
 
 class scan1d(object):
     """ 
@@ -39,7 +40,22 @@ class scan1d(object):
         assert hasattr(fields, "__iter__"), \
             "Need a sequence for argument #0 (fields)."
         assert all([isinstance(name, (str, unicode)) for name in fields])
-        self.fields = map(str, fields)
+        units = []
+        for i, field in enumerate(fields):
+            field = str(field)
+            unit  = re.match("\((.+)\)",field)
+            if unit != None:
+                units.append(unit.groups()[-1])
+            else:
+                units.append("")
+            field = re.match("([a-zA-Z]\w*[a-zA-Z0-9])",field)
+            if field==None:
+                fields[i] = "field%i"%i
+            else:
+                fields[i] = field.group(0)
+        self.fields = fields
+        self.units = units
+        
         self.numcols = len(fields)
         shape = np.shape(data)
         assert len(shape) == 2, "2 dimensional data input expected."
@@ -120,6 +136,20 @@ class scan1d(object):
     def __dir__(self):
         return self.__dict__.keys() + dir(scan1d) + self.fields
     
+    def crop(self, ind):
+        """
+            Crops points of the scan corresponding to the 1d-array
+            `ind' which contains a boolean array mask.
+            
+            Input:
+                ind : numpy.ndarray, dtype=bool, ndim=1
+                    defines which points to take.
+                    The length has to agree with the length of the scan.
+        """
+        assert (ind.size==self.data[0].size), "Invalid length of `ind'."
+        for i in xrange(self.numcols):
+            self.data[i] = self.data[i][ind]
+    
     def normalize(self, col, action="divide"):
         """
             Normalizes all columns to a column specified by ``col`` and
@@ -155,10 +185,10 @@ class scan1d(object):
         np.savetxt(outfile, np.array(self.data).T, **kwargs)
         output += outfile.getvalue()
         outfile.close()
-        if FILENAME == None:
+        if fname == None:
             return output
         else: 
-            fh = open(FILENAME, "w")
+            fh = open(fname, "w")
             fh.write(output)
             fh.close()
 

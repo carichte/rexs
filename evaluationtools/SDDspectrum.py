@@ -11,8 +11,8 @@ import os
 from scipy import ndimage, optimize, special
 import time
 from FIOdata import FIOdata
-from diverse import *
-from pyxrr.functions import get_components
+import diverse
+from pyxrr.xray_interactions import get_components
 import deltaf
 
 class SDDspectrum(object):
@@ -99,7 +99,7 @@ class SDDspectrum(object):
         try:
             return amp * self.p["A"]/2. * np.exp(-channels*self.p["b"]/self.p["B"])\
                                         * (special.erf((channels-C0-self.p["X"])/self.p["B"])+1)\
-                                        + gaussian(channels, C0, abs(amp), w, 0)
+                                        + diverse.gaussian(channels, C0, abs(amp), w, 0)
         except:
             print C0, w, amp
             raise

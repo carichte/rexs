@@ -74,11 +74,11 @@ def get_transition(element, transition=None, col="Direct"):
     finally:
         if hasattr(db, "close"):
             db.close()
-    ind = np.where(transitions==transition)[0]
-    if len(ind):
-        return energies[ind]
-    else:
-        return dict(zip(transitions, energies))
+    if transition==None:
+        transition = ""
+    output = [(edge, energies[i]) for (i, edge) in enumerate(transitions) if edge.startswith(transition)]
+    output = filter(lambda s: ~np.isnan(s[1]), output)
+    return dict(output)
     
 
 def get_edge(element, edge=None):

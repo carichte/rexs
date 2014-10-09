@@ -7,7 +7,7 @@
 
 import os
 import evaluationtools as et
-import pyxrr.functions as pf
+import pyxrr.xray_interactions as xi
 #import mskk
 import numpy as np
 from wrap4leastsq import wrap_for_fit
@@ -33,7 +33,7 @@ class mu2fluo(object):
             Initialize instance to simulate fluorescence.
             The sample composition must be known and a resonant atom has to be assigned.
             
-            inputs:
+            Inputs: (* indicates mandatory inputs)
                 *composition : string
                     sum formula of the sample material
                 *resatom : string, int
@@ -46,7 +46,7 @@ class mu2fluo(object):
                 *density : float
                     density of the sample compound in g/cm^3
                 dE : float
-                    edge shift compared to isolated atom
+                    edge shift compared to isolated atom in eV
                 Eedge : float
                     Edge energy (eV). Will be fetched from database by default.
                 table : database for x-ray optical constants
@@ -65,30 +65,47 @@ class mu2fluo(object):
         self.resatom = resatom
         self.table=table
         self.dE = dE
-        self.beta_nonres = pf.get_optical_constants(density, composition, 
-                                energy - dE, table=table, feff={resatom:0})[1]
-        self.beta_tot = pf.get_optical_constants(density, composition, 
-                                energy - dE, table=table)[1]
-        self.weights = np.ones(len(energy))
+        
+        self._weights = dict(Fluorescence = np.zeros(len(energy)),
+                             Transmission = np.zeros(len(energy)),
+                             Reflection   = np.zeros(len(energy)),
+                             Absorption   = np.zeros(len(energy)))
+        self.solve_data = "Fluorescence" # the best data for which abs coeff will be solved for
+        self.IFluo = None
+        self.IBragg = None
         self.DAFScalc = None
+        self.Transmission = None
+        
+        
+        self.beta_nonres = xi.get_optical_constants(density, composition, 
+                                energy - dE, table=table, feff={resatom:0})[1]
+        self.beta_tot = xi.get_optical_constants(density, composition, 
+                                energy - dE, table=table)[1]
         
         self.mu_nonres = self.beta_nonres * self.const * energy # nonresonant part of absorption
         self.mu_tot = self.beta_tot * self.const * energy # total absorption
-        self.mu_fluo = pf.get_optical_constants(density, composition, emission_energy, table=table)[1] * self.const * emission_energy
+        self.mu_fluo = xi.get_optical_constants(density, composition, 
+                                                emission_energy, 
+                                                table=table)[1]
+        self.mu_fluo *= self.const * emission_energy
         self.mu_res_tab = self.mu_tot - self.mu_nonres # resonant part of absorption
         
         if Eedge == None:
-            edges = deltaf.get_edge(resatom).values()
-            edges = filter(lambda E: (E > energy[0]) * (E < energy[-1]), edges)
-            if len(edges)>1:
-                print("Found multiple edges in energy range."
+            edges = deltaf.get_edge(resatom)
+            edges_inv = dict([(v,k) for (k,v) in edges.iteritems()])
+            Eedges = edges.values()
+            Eedges = filter(lambda E: (E > energy[0]) * (E < energy[-1]), Eedges)
+            if len(Eedges)>1:
+                print("Found multiple edges in energy range. "
                       "Using lowest (first) one.")
-            Eedge = edges[0]
-            print("Using energy of edge at %.1f eV"%Eedge)
+            Eedge = min(Eedges)
+            
+            self.Edge = Edge = edges_inv[Eedge]
+            print("Using energy of %s edge at %.1f eV"%(Edge, Eedge))
         
         self.Eedge = Eedge
         
-        ind = energy < (Eedge-5)
+        ind = energy < (Eedge - 5)
         
         parabola = et.PolynomialFit(np.log(energy), 
                                     np.log(self.mu_res_tab), 
@@ -98,11 +115,12 @@ class mu2fluo(object):
         self.mu_nonres  += np.exp(parabola)
         
         self.mumax = self.mu_res_tab.max()
-        self.mu = et.lorentzian_filter1d(self.mu_res_tab, 2)
+        self.mu = et.lorentzian_filter1d(self.mu_res_tab, 1)
         self.muguess = self.mu.copy()
         # scan parameters:
         self.p = {"omega":0., "d":np.inf, "theta":45., "om_range":0,
-                  "m":0, "n":1., "mf":0, "nf":1., "theta_fluo":45.}
+                  "m":0, "n":1., "mf":0, "nf":1., "theta_fluo":45.,
+                  "mt":0, "nt":1, "tdead":0}
         self.pname = {
             "omega":"miscut",
             "d":"sample thickness",
@@ -112,13 +130,17 @@ class mu2fluo(object):
             "m":"slope of linear background in Bragg intensity",
             "n":"offset of linear background in Bragg intensity",
             "mf":"slope of linear background in fluorescence intensity",
-            "nf":"offset of linear background in fluorescence intensity"}
+            "nf":"offset of linear background in fluorescence intensity",
+            "mf":"slope of linear background in transmission",
+            "nf":"offset of linear background in transmission",
+            "tdead":"Ratio of dead time to measurement time"
+            }
         
         
         self.xval = np.linspace(-4, 4, 51)
         self.stdnorm = et.standard_normal(self.xval)
-        self.muweights = np.zeros(len(self.mu))
-        
+    
+    
     
     def getomega(self, omega=None, om_range=None):
         """
@@ -148,19 +170,62 @@ class mu2fluo(object):
         
         return parts, omega
     
-    def relfluo(self, mu_res=None, **kwargs):
+    
+    
+    def set_Reflection(self, Intensity, Icalc, weights=1):
+        Intensity = np.array(Intensity, ndmin=1)
+        Intensity /= Intensity.max()
+        Icalc = np.array(Icalc, ndmin=1)
+        Icalc /= Icalc.max()
+        self.IBragg = Intensity
+        self.DAFScalc = Icalc
+        self._weights["Reflection"] = np.ones(len(self.energy)) * weights
+    
+    def set_Fluorescence(self, Intensity, weights=1, solve_it=True):
+        Intensity = np.array(Intensity, ndmin=1)
+        Intensity /= Intensity.max()
+        self.Ifluo = Intensity
+        self._weights["Fluorescence"] = np.ones(len(self.energy)) * weights
+        if solve_it:
+            self.solve_data = "Fluorescence"
+
+    def set_Transmission(self, Intensity, weights=1, solve_it=False):
+        Intensity = np.array(Intensity, ndmin=1)
+        Intensity /= Intensity.max()
+        self.Transmission = Intensity
+        self._weights["Transmission"] = np.ones(len(self.energy)) * weights
+        if solve_it:
+            self.solve_data = "Transmission"
+    
+    def set_mu_weights(self, weights=1):
+        self._weights["Absorption"] = np.ones(len(self.energy)) * weights
+    
+    
+    
+    def calc_Fluorescence(self, mu_res=None, **kwargs):
         """
-            Calculates relative Fluorescence from given resonant part of \
-            absorption coefficient (mu_res). If not given, self.mu is taken per
-            default. 
-            keyword arguments: 
+            Calculates relative Fluorescence from the given resonant part of
+            the absorption coefficient (mu_res) and the geometry parameters in
+            the self.p dictionary. 
+            If not given, self.mu is taken per default. 
+            
+            keyword arguments:
                 - all elements of self.p dictionary
         """
+        self.p.update(dict([i for i in kwargs.iteritems() if i[0] in self.p]))
+        
+        parts, omega = self.getomega()
+        
+        bgfluo = self.p["mf"] * (self.energy - self.energy[0]) \
+                    + self.p["nf"] # lin background
+        
         if mu_res == None:
             mu_res = self.mu
+        if mu_res == None:
+            if self.solve_data != "Fluorescence":
+                self.solve_mu_tot()
+            mu_res = self.mu
         mu_res = abs(mu_res)
-        self.p.update(dict([i for i in kwargs.iteritems() if i[0] in self.p]))
-        parts, omega = self.getomega()
         
         s_in = np.sin(np.radians(self.p["theta"] + omega))
         # sine of incoming beam angle
@@ -169,65 +234,19 @@ class mu2fluo(object):
         else:
             s_ou = np.sin(np.radians(self.p["theta"] - omega))
         
-        
         Int = parts * mu_res \
               / (mu_res + self.mu_nonres + s_in/s_ou*self.mu_fluo) \
               * (1 - np.exp(-((self.mu_nonres + mu_res)/s_in \
                              + self.mu_fluo/s_ou) * self.p["d"]))
+        Int = Int.sum(0)
         
-        return Int.sum(0)
+        if self.p["tdead"] != 0:
+            Int = 1./(1./Int + abs(self.p["tdead"]))
+        return Int * bgfluo
     
-    def getmu(self, Ifluo=None, muguess=None, **kwargs):
-        """
-            Fit absorption coefficient for given geometry to measured 
-            fluorescence ``Ifluo'' and return total absorption coefficient.
-        """
-        if Ifluo==None:
-            Ifluo = self.Ifluo
-        else:
-            self.Ifluo = Ifluo
-        self.p.update(dict([i for i in kwargs.iteritems() if i[0] in self.p]))
-        
-        if muguess == None:
-            muguess = self.muguess
-        
-        self.bgfluo = self.p["mf"] * (self.energy - self.energy[0]) \
-                    + self.p["nf"] # lin background
-        
-        resfunc = lambda x: (self.relfluo(x) * self.bgfluo - Ifluo)**2
-        self.mu = abs(optimize.fsolve(resfunc, muguess))
-        
-        self.mu_tot = self.mu + self.mu_nonres
-        return self.mu_tot
     
-    def getf2(self, mu_tot=None):
-        """
-            Returns imaginary part of scattering amplitude ``f'' for resonant
-            atom and given composition.
-        """
-        if mu_tot==None:
-            mu_tot = self.mu_tot
-        
-        beta_tot = mu_tot / self.const / self.energy
-        elements, amount = pf.get_components(self.composition)
-        weights = [pf.get_element(element)[1]/1000. for element in elements]
-        beta_tot *= (np.array(amount)*np.array(weights)).sum()
-        beta_tot /= pf.electron_radius/(2*np.pi) \
-                    * (pf.keV_A*1e-7/self.energy)**2 \
-                    * self.density*1000. * pf.avogadro
-        for i in range(len(elements)):
-            if elements[i]==self.resatom:
-                ires = i
-                continue
-            f1, f2 = np.array(pf.get_f1f2_from_db(elements[i], 
-                                                  self.energy - self.dE, 
-                                                  table=self.table))
-            beta_tot  -= f2 * amount[i]
-        
-        self.f2 = beta_tot / amount[ires]
-        return self.f2
     
-    def AbsBragg(self, mu_tot=None, pol="sigma", **kwargs):
+    def calc_Reflection(self, mu_tot=None, pol="sigma", **kwargs):
         """
             Calculates absorption in Bragg geometry.
             
@@ -242,6 +261,7 @@ class mu2fluo(object):
                 The kwargs are all content of the self.p geometry parameters.
         """
         self.p.update(dict([i for i in kwargs.iteritems() if i[0] in self.p]))
+        
         if pol=="sigma":
             LP = 1.
         else:
@@ -249,11 +269,11 @@ class mu2fluo(object):
         parts, omega = self.getomega()
         
         # lin background:
-        self.bg = self.p["m"] * (self.energy - self.energy[0]) + self.p["n"] 
+        bg = self.p["m"] * (self.energy - self.energy[0]) + self.p["n"] 
         
         Q = LP
         if mu_tot==None:
-            mu_tot = self.getmu()
+            mu_tot = self.solve_mu_tot()
         t_om = np.tan(np.radians(omega))
         t_th = np.tan(np.radians(self.p["theta"]))
         s_in = np.sin(np.radians(omega + self.p["theta"]))
@@ -261,8 +281,100 @@ class mu2fluo(object):
         Int = parts * Q / (2*mu_tot) * (1 - t_om/t_th) \
             * (1 - np.exp(-2*mu_tot*self.p["d"]/s_in/(1 - t_om/t_th)))
         Int = Int.sum(0)
-        Int *= self.bg / Int[0]
+        Int *= bg / Int[0]
         return Int
+    
+    
+    
+    def calc_Transmission(self, mu_tot=None, **kwargs):
+        """
+            Calculates absorption in Transmission geometry.
+            
+            All necessary inputs are taken from the self.p geometry parameters
+            and the absorption coefficient self.mu.
+            Optionally they can be overwritten by passing to the function:
+                
+                mu_tot : np.array
+                       total absorption coefficient of the material
+                
+                The kwargs are all content of the self.p geometry parameters.
+        """
+        self.p.update(dict([i for i in kwargs.iteritems() if i[0] in self.p]))
+        
+        parts, omega = self.getomega()
+        
+        # lin background:
+        bgtrans = self.p["mt"] * (self.energy - self.energy[0])\
+                     + self.p["nt"] 
+        
+        if mu_tot==None:
+            if self.solve_data != "Transmission":
+                mu_tot = self.solve_mu_tot()
+            mu_tot = self.mu_tot
+            
+        s_in = np.sin(np.radians(omega + self.p["theta"]))
+        
+        d = self.p["d"] / s_in
+        Int = np.exp(-d*mu_tot) * parts
+        Int = Int.sum(0)
+        Int *= bgtrans / Int[0]
+        return Int
+    
+    
+    
+    def solve_mu_tot(self, muguess=None, **kwargs):
+        """
+            Solve equation for Fluorescence by point-wise variation of the 
+            absorption coefficient for given geometry parameters in self.p to 
+            meet the given Fluorescence or Transmission. 
+            
+            Returns total absorption coefficient.
+        """
+        self.p.update(dict([i for i in kwargs.iteritems() if i[0] in self.p]))
+        
+        if muguess == None:
+            muguess = self.muguess
+        
+        if self.solve_data == "Fluorescence":
+            resfunc = lambda x: (self.calc_Fluorescence(x) - self.Ifluo)**2
+            self.mu = abs(optimize.fsolve(resfunc, muguess))
+            self.mu_tot = self.mu + self.mu_nonres
+        elif self.solve_data == "Transmission":
+            resfunc = lambda x: (self.calc_Transmission(x) - self.Transmission)**2
+            self.mu_tot = abs(optimize.fsolve(resfunc, muguess+self.mu_nonres))
+            self.mu = self.mu_tot - self.mu_nonres
+        return self.mu_tot
+    
+    
+    
+    def getf2(self, mu_tot=None):
+        """
+            Returns imaginary part of scattering amplitude ``f'' for resonant
+            atom and given composition.
+        """
+        if mu_tot==None:
+            mu_tot = self.mu_tot
+        
+        beta_tot = mu_tot / self.const / self.energy
+        elements, amount = xi.get_components(self.composition)
+        atweights = [xi.get_element(element)[1]/1000. for element in elements]
+        beta_tot *= (np.array(amount)*np.array(atweights)).sum()
+        beta_tot /= xi.electron_radius/(2*np.pi) \
+                    * (xi.keV_A*1e-7/self.energy)**2 \
+                    * self.density*1000. * xi.avogadro
+        for i in range(len(elements)):
+            if elements[i]==self.resatom:
+                ires = i
+                continue
+            f1, f2 = np.array(xi.get_f1f2_from_db(elements[i], 
+                                                  self.energy - self.dE, 
+                                                  table=self.table))
+            beta_tot  -= f2 * amount[i]
+        
+        self.f2 = beta_tot / amount[ires]
+        return self.f2
+    
+    
     
     def residuals(self, **p):
         self.p.update(dict([i for i in p.iteritems() if i[0] in self.p]))
@@ -270,36 +382,44 @@ class mu2fluo(object):
         for key in ["d"]:
             self.p[key] = abs(self.p[key])
         
-        self.Abs = self.AbsBragg()
-        if self.DAFScalc == None:
-            res1 = (self.Abs - self.IBragg) * self.weights
-        else:
-            res1 = (self.IBragg / self.Abs - self.DAFScalc) * self.weights
         
-        if self.muweights.sum()>0.:
-            res2 = (self.mu_res_tab - self.mu) * self.muweights / self.mumax
-            res = np.append(res1, res2)
-        else:
-            res = res1
+        res = []
         
+        w = self._weights["Reflection"]
+        if self.IBragg != None and self.DAFScalc!=None and w.sum() > 0.:
+            self.Abs = self.calc_Reflection()
+            res.append((self.IBragg - self.Abs * self.DAFScalc) * w)
+        
+        w = self._weights["Absorption"]
+        if w.sum() > 0.:
+            res.append((self.mu_res_tab - self.mu) * w / self.mumax)
+        
+        w = self._weights["Transmission"]
+        if self.Transmission!=None and w.sum()>0.:
+            res.append((self.Transmission - self.calc_Transmission()) * w)
+        
+        w = self._weights["Fluorescence"]
+        if self.IFluo!=None and w.sum()>0.:
+            res.append((self.Ifluo - self.calc_Fluorescence()) * w)
+        
+        res = np.hstack(res)
         err = (res**2).sum()
         if err<self.err:
             self.muguess = self.mu
         self.err = err
-        print self.err, "\t", " ".join(["%s=%f"%i for i in self.p.iteritems()])
+        print self.err, "\t", " ".join(["%s=%g"%i for i in self.p.iteritems()])
         if self.fitalg == "simplex":
             return err
         else:
             return res
         
-    def fitit(self, IBragg, variables, fitalg="leastsq"):
+    def fitit(self, variables, fitalg="leastsq"):
         """
             Fits the calculated DAFS (self.DAFScalc) to the measured Bragg 
             intensity (IBragg) by varying the geometry parameters in 
             self.p
         """
         self.fitalg = fitalg
-        self.IBragg = IBragg
         self.variables = variables
         self.err = np.inf
         func, startval = wrap_for_fit(self.residuals, self.p, variables)
@@ -312,6 +432,7 @@ class mu2fluo(object):
         param = output[0]
         return param
         
+
 
 
 
@@ -382,7 +503,7 @@ def fluo_to_mu(composition, density, energy, fluorescence, order=1, dE=None,
     maxiter = 10000
     const = 10135467.657934014 # 2*e/c/hbar
     energy_ext = np.arange(energy[0]-100, energy[-1]+100, np.diff(energy).min())
-    delta, beta = pf.get_optical_constants(density, composition, energy_ext, 
+    delta, beta = xi.get_optical_constants(density, composition, energy_ext, 
                                            table=table)
     mu = et.lorentzian_filter1d(const * energy_ext * beta, 2)
     #fluorescence = et.lorentzian_filter1d(fluorescence, 1)
@@ -491,7 +612,7 @@ def rebin_k_space(energy, xafs, edge, dist=10, conststep=True):
     newene[ind] = np.sqrt(2.*a*(energy[ind] - edge) - a**2) + edge
     
     data = np.vstack((newene, xafs)).T
-    esmooth, xafssmooth = pf.rebin_data(data[ind], np.diff(newene[~ind])[0]).T
+    esmooth, xafssmooth = xi.rebin_data(data[ind], np.diff(newene[~ind])[0]).T
     esmooth = edge + ((esmooth - edge)**2 + a**2)/(2*a)
     esmooth = np.append(energy[~ind], esmooth)
     xafssmooth = np.append(xafs[~ind], xafssmooth)

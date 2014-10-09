@@ -1,5 +1,4 @@
 import numpy as np
-import pyxrr.functions as pf
 import scipy.optimize as sopt
 import deltaf
 import mskk
@@ -51,7 +50,7 @@ class IterativeKK(object):
     def AddFS(self, emin, emax, symbol, anchorpoints=None, w=10., f1func=None, f2func=None):
         element = symbol.name.split("_")[1]
         self.Z[symbol] = deltaf.elements.Z[element]
-        #self.f1tab[symbol], self.f2tab[symbol] = pf.get_f1f2_from_db(element, self.energy - self.cs.dE[element], table="Sasaki")
+        #self.f1tab[symbol], self.f2tab[symbol] = xi.get_f1f2_from_db(element, self.energy - self.cs.dE[element], table="Sasaki")
         E, ind = deltaf.get_energies(element, self.energy[0], 
                                               self.energy[-1], fwhm_ev=w)
         eedge = E[ind]
