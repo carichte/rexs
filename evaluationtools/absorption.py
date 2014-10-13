@@ -75,6 +75,7 @@ class mu2fluo(object):
         self.IBragg = None
         self.DAFScalc = None
         self.Transmission = None
+        self.callback = None
         
         
         self.beta_nonres = xi.get_optical_constants(density, composition, 
@@ -116,6 +117,7 @@ class mu2fluo(object):
         
         self.mumax = self.mu_res_tab.max()
         self.mu = et.lorentzian_filter1d(self.mu_res_tab, 1)
+        self.mu_tot = self.mu_nonres + self.mu
         self.muguess = self.mu.copy()
         # scan parameters:
         self.p = {"omega":0., "d":np.inf, "theta":45., "om_range":0,
@@ -131,8 +133,8 @@ class mu2fluo(object):
             "n":"offset of linear background in Bragg intensity",
             "mf":"slope of linear background in fluorescence intensity",
             "nf":"offset of linear background in fluorescence intensity",
-            "mf":"slope of linear background in transmission",
-            "nf":"offset of linear background in transmission",
+            "mt":"slope of linear background in transmission",
+            "nt":"offset of linear background in transmission",
             "tdead":"Ratio of dead time to measurement time"
             }
         
@@ -183,8 +185,13 @@ class mu2fluo(object):
     
     def set_Fluorescence(self, Intensity, weights=1, solve_it=True):
         Intensity = np.array(Intensity, ndmin=1)
-        Intensity /= Intensity.max()
-        self.Ifluo = Intensity
+        ind = (self.Eedge + 100)
+        postedge = np.mean((self.Eedge, self.energy.max()))
+        poly = et.PolynomialFit(self.energy, Intensity / self.mu_res_tab, 
+                               [postedge, self.energy.max()], 10)
+        Intensity /= poly
+        self.p["nf"] = np.median(Intensity)/np.median(self.calc_Fluorescence())
+        self.IFluo = Intensity
         self._weights["Fluorescence"] = np.ones(len(self.energy)) * weights
         if solve_it:
             self.solve_data = "Fluorescence"
@@ -222,8 +229,9 @@ class mu2fluo(object):
         if mu_res == None:
             mu_res = self.mu
         if mu_res == None:
-            if self.solve_data != "Fluorescence":
-                self.solve_mu_tot()
+            #if self.solve_data != "Fluorescence":
+            #self.solve_mu_tot()
+            self.mu_tot
             mu_res = self.mu
         mu_res = abs(mu_res)
         
@@ -273,7 +281,8 @@ class mu2fluo(object):
         
         Q = LP
         if mu_tot==None:
-            mu_tot = self.solve_mu_tot()
+            #mu_tot = self.solve_mu_tot()
+            mu_tot = self.mu_tot
         t_om = np.tan(np.radians(omega))
         t_th = np.tan(np.radians(self.p["theta"]))
         s_in = np.sin(np.radians(omega + self.p["theta"]))
@@ -308,8 +317,8 @@ class mu2fluo(object):
                      + self.p["nt"] 
         
         if mu_tot==None:
-            if self.solve_data != "Transmission":
-                mu_tot = self.solve_mu_tot()
+            #if self.solve_data != "Transmission":
+            #    mu_tot = self.solve_mu_tot()
             mu_tot = self.mu_tot
             
         s_in = np.sin(np.radians(omega + self.p["theta"]))
@@ -317,7 +326,7 @@ class mu2fluo(object):
         d = self.p["d"] / s_in
         Int = np.exp(-d*mu_tot) * parts
         Int = Int.sum(0)
-        Int *= bgtrans / Int[0]
+        Int *= bgtrans
         return Int
     
     
@@ -334,14 +343,23 @@ class mu2fluo(object):
         
         if muguess == None:
             muguess = self.muguess
+            
         
         if self.solve_data == "Fluorescence":
-            resfunc = lambda x: (self.calc_Fluorescence(x) - self.Ifluo)**2
+            resfunc = lambda x: (self.calc_Fluorescence(x) - self.IFluo)**2
             self.mu = abs(optimize.fsolve(resfunc, muguess))
             self.mu_tot = self.mu + self.mu_nonres
         elif self.solve_data == "Transmission":
-            resfunc = lambda x: (self.calc_Transmission(x) - self.Transmission)**2
-            self.mu_tot = abs(optimize.fsolve(resfunc, muguess+self.mu_nonres))
+            if self.p["om_range"] > 0:
+                raise ValueError("om_range not supported for Transmission")
+            parts, omega = self.getomega()
+            omega = omega.item()
+            bgtrans = self.p["mt"] * (self.energy - self.energy[0]) \
+                                   + self.p["nt"]
+            s_in = np.sin(np.radians(omega + self.p["theta"]))
+            d = self.p["d"] / s_in
+            I = self.Transmission / bgtrans
+            self.mu_tot = -np.log(I)/d
             self.mu = self.mu_tot - self.mu_nonres
         return self.mu_tot
     
@@ -384,6 +402,9 @@ class mu2fluo(object):
         
         
         res = []
+        if self.callback!=None:
+            self.callback()
+        self.solve_mu_tot()############################################################################
         
         w = self._weights["Reflection"]
         if self.IBragg != None and self.DAFScalc!=None and w.sum() > 0.:
@@ -400,12 +421,13 @@ class mu2fluo(object):
         
         w = self._weights["Fluorescence"]
         if self.IFluo!=None and w.sum()>0.:
-            res.append((self.Ifluo - self.calc_Fluorescence()) * w)
+            res.append((self.IFluo - self.calc_Fluorescence()) * w)
         
         res = np.hstack(res)
         err = (res**2).sum()
-        if err<self.err:
+        if err<self.errmin:
             self.muguess = self.mu
+            self.errmin = err
         self.err = err
         print self.err, "\t", " ".join(["%s=%g"%i for i in self.p.iteritems()])
         if self.fitalg == "simplex":
@@ -413,22 +435,24 @@ class mu2fluo(object):
         else:
             return res
         
-    def fitit(self, variables, fitalg="leastsq"):
+    def fitit(self, variables, fitalg="leastsq", callback=None, **kwargs):
         """
             Fits the calculated DAFS (self.DAFScalc) to the measured Bragg 
             intensity (IBragg) by varying the geometry parameters in 
             self.p
         """
+        self.callback = callback
         self.fitalg = fitalg
         self.variables = variables
         self.err = np.inf
+        self.errmin = np.inf
         func, startval = wrap_for_fit(self.residuals, self.p, variables)
         if self.fitalg == "simplex":
-            output = optimize.fmin(func, startval, full_output=True)
+            
+            output = optimize.fmin(func, startval, full_output=True, **kwargs)
                    #, maxfun=1000*len(startval), maxiter=1000*len(startval))
         else:
-            output = optimize.leastsq(func, startval, full_output=True, 
-                                      ftol=2**-20, xtol=2**-20)
+            output = optimize.leastsq(func, startval, full_output=True, **kwargs)
         param = output[0]
         return param
         

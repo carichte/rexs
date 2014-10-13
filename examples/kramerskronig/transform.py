@@ -15,7 +15,7 @@ import mskk
 # Example how to use the Kramers Kronig Transformation
 
 # correction if bad behavior on the borders, but may cause const. offset of result
-corr=2
+corr=0
 
 data = et.loaddat("sto_f2.dat")
 #data[1]*=2
