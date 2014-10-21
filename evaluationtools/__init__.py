@@ -11,7 +11,7 @@ from FIOdata import *
 from scantype import *
 from energy_calibration import *
 from fitls import *
-import absorption
+#import absorption
 #import spec
-import rebinning
+#import rebinning
 import average
