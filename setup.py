@@ -6,10 +6,12 @@ import sys
 if len(sys.argv)<2:
     print("see install.txt for installation instructions.")
 
+
 setup( name = "rexs", 
        version = "0.1",
-       ext_modules = [Extension("deltaf.deltaf", ["deltaf/deltaf.f"])],
-       packages = ["mskk", "evaluationtools", "deltaf"],
+       ext_modules = [Extension("deltaf.deltaf", ["deltaf/deltaf.f"]), 
+                      Extension("rebin.librebin", ["rebin/rebin.c"])],
+       packages = ["mskk", "evaluationtools", "deltaf", "rebin"],
        package_data={"deltaf": ["*.npz"]},
        author = "Carsten Richter", 
        author_email = "carsten.richter@desy.de",
