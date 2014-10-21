@@ -9,7 +9,6 @@ import os
 from scipy import ndimage
 
 
-
 def BackgroundXRD(pattern, span=20, ftol=1e-4, maxiter=2500, nsigma=1, 
                   verbose=False):
     """
@@ -67,3 +66,4 @@ def BackgroundXRD(pattern, span=20, ftol=1e-4, maxiter=2500, nsigma=1,
         print "Number of Iterations: %i"%i
         print "Final Relative Error: %g"%derr
     return pattern[span:-span]
+

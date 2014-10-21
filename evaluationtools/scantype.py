@@ -43,7 +43,7 @@ class scan1d(object):
         units = []
         for i, field in enumerate(fields):
             field = str(field)
-            unit  = re.match("\((.+)\)",field)
+            unit  = re.match("_\((.+)\)",field)
             if unit != None:
                 units.append(unit.groups()[-1])
             else:
