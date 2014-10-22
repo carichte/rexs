@@ -5,25 +5,86 @@
 # (carsten.richter@desy.de)
 #
 import numpy as np
-import os
-from scipy import ndimage, optimize, special
-import time
+from scipy import optimize
 import wrap4leastsq
 
-class expando(object): pass 
+class fitresults(object): pass 
 
-def fitls(x_m, y_m, func, guess, variables, power=1, weights=None, fitalg="leastsq"):
+def fitls(x_m, y_m, func, guess, variables="all", power=1, weights=None, 
+          fitalg="leastsq"):
     """
-        Fits function `func` to measured data (x_m, y_m) using scipy`s `leastsq` or `fmin`
         
-        'guess' is a dictionary of all parameters 'func' takes including starting values.
-        'variables' is a list of strings containing the parameters which shall be varied.
+        Fitting a pre-defined function to a set of data using `leastsq' or
+        `fmin' from scipy.optimize.
         
-        Returns a (resulting function, resulting parameters, sum of squares) tuple.
+        Inputs:
+            x_m : numpy.ndarray
+                independent values of data points
+            
+            y_m : numpy.ndarray
+                dependent values of data points
+            
+            func : function
+                function to describes the (x_m,y_m) curve. It must accept
+                x_m as first argument. The remaining arguments are parameters
+                that can be varied to fit `func' onto the data points.
+            
+            guess : dictionary
+                A dictionary containing (parameter, startvalues) items where
+                each parameter is one of func's arguments.
+            
+            variables : list (optional)
+                A list of parameter names of `guess' which will be varied to
+                fit `func' to the given data (x_m, y_m).
+                default: guess.keys() (all parameters)
+            
+            power : float (optional)
+                The differences between data points and fit function can be 
+                raised to this power to modify the influence which small or 
+                large devieations have.
+                default: 1
+            
+            weights : str or numpy.ndarray (optional)
+                Defines how the different data points shall be weighted 
+                during fit. I can either be an array containing the weight for
+                each of the data points or 'statistical' to weight by the
+                inverse square root of the data values `y_m' like in poisson
+                statistics or, last, 'relative' to weight by the inverse of
+                the data values if the relative deviation of func and data 
+                is to be minimized.
+                Default: no weighting
+            
+            fitalg : str (optional)
+                Can be either 'leastsq' or 'simplex' to make use of the 
+                scipy.optimize functions `leastsq' or `fmin', respectively.
+                Default: 'leastsq'
         
-        weights can be 'statistical', an array of length len(x_m) or None
+        Returns:
+            A `fitresults' object containing the following attributes:
+            
+            - fitresult.popt : dictionary
+                A dictionary like `guess' but containing the values of the 
+                parameters after optimization
+            - fitresult.err : float
+                The value of the used residuals function in the fount optimum
+            - fitresult.stddev : dictionary
+                A dictionary like `guess' containing the standard deviation 
+                of each parameter in case `fitalg="leastsq"' was used.
+            - fitresult.Rval : float
+                The R-value describing the goodness of fit as is used in 
+                X-ray diffraction.
+            - fitresult.ysim : numpy.ndarray
+                The evaluated values of func at `x_m' in the optimum
+            - fitresult.yguess : numpy.ndarray
+                The evaluated values of func at `x_m' for the guess
+            - fitresult.func : function
+                The fitfunction `func' for the found solution using the 
+                optimized parameters and only accepting `x_m' as an input.
+            
+        
+        Example: See ../examples/fitls/fitexample.py
+        
     """
-    #print hasattr(weights, "__iter__") , hasattr(weights, "__len__") , len(weights)==len(x_m)
     if not isinstance(x_m, np.ndarray):
         x_m = np.array(x_m)
     if not isinstance(y_m, np.ndarray):
@@ -52,20 +113,27 @@ def fitls(x_m, y_m, func, guess, variables, power=1, weights=None, fitalg="least
     else: 
         def residuals(v):
             return (func(x_m, **v) - y_m)**power
-        print("Bad input for ``weights``. No weighting implemented.")
+        print("Invalid input for ``weights``. No weighting implemented.")
     
     sumofsquares = lambda v: (residuals(v)**2).sum()
     
     fitted_param = guess.copy()
+    if variables=="all":
+        variables = guess.keys()
     if fitalg=="leastsq":
-        fitfunction, startvalues = wrap4leastsq.wrap_for_fit(residuals, guess, variables, unpack=False)
+        fitfunction, startvalues = wrap4leastsq.wrap_for_fit(residuals, guess, 
+                                                      variables, unpack=False)
         output = optimize.leastsq(fitfunction, startvalues, full_output=True)
         #print output
-        if output[1]==None: stddev = [np.inf for i in range(len(variables))]
-        else: stddev = [np.sqrt(var) for var in output[1].diagonal()] # Kovarianzmatrix
+        if output[1]==None: 
+            stddev = [np.inf for i in range(len(variables))]
+        else: 
+            stddev = [np.sqrt(var) for var in output[1].diagonal()] # Kovarianzmatrix
     elif fitalg=="simplex":
-        fitfunction, startvalues = wrap4leastsq.wrap_for_fit(sumofsquares, guess, variables, unpack=False)
-        output = optimize.fmin(fitfunction, startvalues, full_output=True, maxfun=1000*len(startvalues), maxiter=1000*len(startvalues))
+        fitfunction, startvalues = wrap4leastsq.wrap_for_fit(sumofsquares, 
+                                              guess, variables, unpack=False)
+        output = optimize.fmin(fitfunction, startvalues, full_output=True, 
+                 maxfun=1000*len(startvalues), maxiter=1000*len(startvalues))
         stddev = [np.inf for i in range(len(variables))]
     if len(variables)>1: 
         fitted_param.update(dict(zip(variables, output[0]))) # minimize
@@ -73,9 +141,10 @@ def fitls(x_m, y_m, func, guess, variables, power=1, weights=None, fitalg="least
     else:
         fitted_param.update(dict([(variables[0], output[0])])) # minimize
         stddev_dict = dict([(variables[0], stddev)])
+    
     y_s = func(x_m, **fitted_param)
     outdict = {}
-    result = expando()
+    result = fitresults()
     result.popt = fitted_param
     result.err = (residuals(fitted_param)**2).sum()/len(x_m)
     result.stddev = stddev_dict
@@ -85,4 +154,5 @@ def fitls(x_m, y_m, func, guess, variables, power=1, weights=None, fitalg="least
     result.func = lambda x: func(x, **fitted_param)
     return result
     
+
 
