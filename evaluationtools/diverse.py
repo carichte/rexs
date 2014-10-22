@@ -181,11 +181,11 @@ def loaddat(fname, parse=True, todict=False, skiprows=0, comment="#", **kwargs):
                 where data is an numpy.ndarray and header a string.
     """
     try:
-        data = np.loadtxt(fname, comments=None, **kwargs)
+        data = np.loadtxt(fname, comments=None, ndmin=2, **kwargs)
         return data[skiprows:], ""
         # No header present
     except:
-        data = np.loadtxt(fname, skiprows=1+skiprows, **kwargs)
+        data = np.loadtxt(fname, skiprows=1+skiprows, ndmin=2, **kwargs)
         header = _read_header(fname, comment=comment)
         cols = header.split()
         if parse and len(cols) == data.shape[1]:
