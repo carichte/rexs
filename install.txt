@@ -29,8 +29,8 @@ Then:
         python setup.py install
 
 
-    iii) if you want to create an inplace module which only works in
-         the ``contrib`` folder, you can use:
+    iii) if you want to create an inplace module which only works
+         locally, you can use:
     
         python setup.py build_ext -f -i
 
