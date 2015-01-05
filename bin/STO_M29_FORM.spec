@@ -1,0 +1,1 @@
+/space/crichter/backup/Arbeit/Messungen/STO/mfp/Dez2014/raw/STO_M29_FORM.spec

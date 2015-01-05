@@ -103,24 +103,15 @@ def _write_header(filename, header):
     myfile.close()
 
 
-def _read_header(filename, comment="#"):
+def _read_header(filename, comment="#", line=0):
     """
         reads only first line of file.
     """
-    myfile = open(filename, "r")
-    output = ""
-    while True:
-        header = myfile.readline()
-        if not header:
-            break
-        elif not comment:
-            output = header.strip("\r\n%s"%comment)
-            break
-        elif comment and header[0]!=comment:
-            break
-        else:
-            output = header.strip("\r\n%s"%comment)
-    myfile.close()
+    with open(filename, "r") as myfile:
+        output = ""
+        for i in xrange(line+1):
+            header = myfile.readline()
+        output = header.strip("\r\n%s"%comment)
     return output
 
 
@@ -181,12 +172,12 @@ def loaddat(fname, parse=True, todict=False, skiprows=0, comment="#", **kwargs):
                 where data is an numpy.ndarray and header a string.
     """
     try:
-        data = np.loadtxt(fname, comments=None, ndmin=2, **kwargs)
+        data = np.loadtxt(fname, comments=None, skiprows=0, ndmin=2, **kwargs)
         return data[skiprows:], ""
         # No header present
     except:
         data = np.loadtxt(fname, skiprows=1+skiprows, ndmin=2, **kwargs)
-        header = _read_header(fname, comment=comment)
+        header = _read_header(fname, comment=comment, line=skiprows)
         cols = header.split()
         if parse and len(cols) == data.shape[1]:
             if todict:
