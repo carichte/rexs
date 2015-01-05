@@ -128,16 +128,6 @@ if not cols:
     raise StandardError("No columns chosen.")
 
 
-# STORING CURRENT SELECTION ###############################################
-if os.path.isfile(conffile):
-    conf.read(conffile)
-    if not conf.has_section(fname):
-        conf.add_section(fname)
-    conf.set(fname, "plotscans", " ".join(map(str, plotscans)))
-    conf.set(fname, "cols", " ".join(cols))
-    with open(conffile, "w") as fh:
-        conf.write(fh)
-
 
 # PLOTTING ################################################################
 nrow = int(pl.sqrt(len(cols)))
@@ -160,3 +150,15 @@ for j, colname in enumerate(cols):
     ax.ravel()[j].set_ylabel(colname)
 pl.legend()
 pl.show()
+
+
+# STORING CURRENT SELECTION ###############################################
+if os.path.isfile(conffile):
+    conf.read(conffile)
+    if not conf.has_section(fname):
+        conf.add_section(fname)
+    conf.set(fname, "plotscans", " ".join(map(str, plotscans)))
+    conf.set(fname, "cols", " ".join(cols))
+    with open(conffile, "w") as fh:
+        conf.write(fh)
+
