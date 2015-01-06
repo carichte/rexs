@@ -39,7 +39,7 @@ parser.add_argument("-c", "--col", type=str, default=None,
 #                    default="fdmnes_overview.csv", help="output file")
 args = parser.parse_args()
 
-fname = args.specfile[0]
+fname = os.path.abspath(args.specfile[0])
 
 if not os.path.isfile(fname):
     raise ValueError("File not found: %s"%fname)
@@ -49,7 +49,7 @@ sf = spec.SPECfile(fname)
 
 
 
-confdir = os.path.join(os.path.expanduser("~"), ".specviewer")
+confdir = os.path.join(os.path.expanduser("~"), ".cache", "specviewer")
 if not os.path.isdir(confdir):
     try:
         os.mkdir(confdir)
@@ -91,7 +91,7 @@ if not args.scanno:
         
         pos = plotscans[0] if plotscans else 0
         attr = screen.menu(map(str,numbers), pos, info=scaninfo, showall=True,
-                           selected=plotscans, exitbutton=ord("\n"))
+                           selected=plotscans)
         
         if attr=="exit":
             pass
@@ -107,6 +107,10 @@ if not plotscans:
 # CHOOSING COLUMNS TO PLOT ################################################
 if args.col == None:
     labels = set(sum([sf[i].alllabels()[1:] for i in plotscans], []))
+    nbmca = min([sf[i].nbmca()/sf[i].lines() for i in plotscans])
+    for i in xrange(nbmca):
+        labels.add("__MCA_%i_3d"%(i+1))
+        labels.add("__MCA_%i_3d-log"%(i+1))
     with Screen() as screen:
         signal.signal(signal.SIGWINCH, screen.resize)
         screen.clear()
@@ -140,15 +144,32 @@ for i in plotscans:
     labels = scan.alllabels()
     xnames.add(labels[0])
     for j, colname in enumerate(cols):
-        if not colname in labels:
+        x = scan.datacol(1)
+        thisax = ax.ravel()[j]
+        if colname in labels:
+            thisax.plot(x, scan.datacol(colname), 
+                               label="#%i:  %s"%(i, scan.command()))
+            lblax = thisax
+        elif colname.startswith("__MCA_"):
+            i_mca = int(colname.rsplit("_",2)[1])
+            anf = scan.lines() * (i_mca-1)
+            end = scan.lines() * i_mca
+            data = [scan.mca(line+1) for line in xrange(anf, end)]
+            data = pl.vstack(data).T
+            if "-log" in colname:
+                data = pl.log(data)
+            thisax.imshow(data, aspect="auto",
+                                 extent=(x[0], x[-1], 0, data.shape[0]-1))
+            thisax.set_title("#%i:  %s"%(i, scan.command()))
+            thisax.grid(False)
+            
+        else:
             raise ValueError("Column `%s` not found."%colname)
-        ax.ravel()[j].plot(scan.datacol(1), scan.datacol(colname), 
-                           label="#%i:  %s"%(i, scan.command()))
 
 for j, colname in enumerate(cols):
     ax.ravel()[j].set_xlabel(r" / ".join(xnames))
     ax.ravel()[j].set_ylabel(colname)
-pl.legend()
+lblax.legend()
 pl.show()
 
 
