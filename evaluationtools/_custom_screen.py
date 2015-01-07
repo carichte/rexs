@@ -2,7 +2,7 @@ import curses
 import curses.textpad
 import curses.ascii
 import curses.panel
-
+from collections import defaultdict
 def validator(ch):
     if ch==curses.ascii.NL:
         return curses.ascii.BEL
@@ -74,12 +74,41 @@ class Screen:
         return text
     
     def menu(self, items, position=0, info={}, showall=False, selected=None,
-                   readonly = [], exitbutton=ord("q"), **kwargs):
-        items.append('exit')
+                   readonly = [], submit={}, **kwargs):
+        """
+            Opens a list-like menu:
+            
+            Inputs:
+                items : list
+                    list of items to choose from
+                position : int
+                    starting position of the curser
+                info : dict
+                    dictionary containing information for a set of items
+                selected : list
+                    list of marked items, will be modified during call
+                readonly : list
+                    list of items that cannot be selected
+                submit : list or dict
+                    list or dict of extra items that contain the submit options
+                    if dict, the values contain the keys that cause the 
+                    corresponding submission when pressed
+                
+        """
+        if isinstance(submit, list):
+            submit = dict.fromkeys(submit)
         if position in items:
             position = items.index(position)
         elif not isinstance(position, int):
             position = 0
+        submit = defaultdict(str, submit)
+        submit["cancel"] = 27
+        mark = 8*"="
+        items.append(mark)
+        readonly.append(mark)
+        items+=submit.keys()
+        buttons = dict([(v,k) for (k,v) in submit.iteritems()])
+        #info["cancel"] = str(submit)
         self.win = self.S.subwin(0,0)
         self.win.keypad(1)
         self.panel = curses.panel.new_panel(self.win)
@@ -127,7 +156,8 @@ class Screen:
                     break
                 if index<start:
                     continue
-                self.win.addstr(1+index-start, 1, '%d.'%index, mode)
+                if item not in (list(submit) + [mark]):
+                    self.win.addstr(1+index-start, 1, '%d.'%index, mode)
                 self.win.addstr(1+index-start, space1, '%s'%item, mode)
                 if selected!=None and item in selected:
                     self.win.addstr(1+index-start, 0, "*", curses.A_BOLD)
@@ -156,16 +186,17 @@ class Screen:
             elif key in digits:
                 position = digits.index(key)
             elif key in [curses.KEY_ENTER, ord('\n')]:
-                if selected:
-                    return "exit"
+                if selected and values[position] not in submit:
+                    return "__defaultaction"
                 else:
                     break
-            elif key in [exitbutton, 27]:
-                return "exit"
+            elif key in submit.values():
+                action = buttons[key]
+                return action
             elif values[position] in readonly:
                 continue
             elif key in [ord(' ')] and selected!=None:
-                if values[position]=="exit":
+                if values[position] in submit:
                     continue
                 elif values[position] in selected:
                     selected.pop(selected.index(values[position]))
