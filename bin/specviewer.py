@@ -17,12 +17,16 @@ import sys
 import argparse
 import pylab as pl
 import evaluationtools
+import hashlib
 from evaluationtools._custom_screen import Screen
 from evaluationtools import spec
+import evaluationtools as et
 import signal
 import ConfigParser
 
 
+
+#print __file__
 
 parser = argparse.ArgumentParser(description=
    "Simple text-based selection of scans and columns from `.spec` file for "
@@ -62,6 +66,20 @@ if not os.path.isfile(conffile):
     except:
         pass
 
+def md5_for_file(path, block_size=256*128, hr=False):
+    '''
+    Block size directly depends on the block size of your filesystem
+    to avoid performances issues
+    Here I have blocks of 4096 octets (Default NTFS)
+    '''
+    md5 = hashlib.md5()
+    with open(path,'rb') as f: 
+        for chunk in iter(lambda: f.read(block_size), b''): 
+             md5.update(chunk)
+    if hr:
+        return md5.hexdigest()
+    return md5.digest()
+
 # READING CONFIG ##########################################################
 if os.path.isfile(conffile):
     conf = ConfigParser.ConfigParser()
@@ -90,11 +108,14 @@ if not args.scanno:
                           " <enter> - plot scan | ENTER - plot/proceed")
         
         pos = plotscans[0] if plotscans else 0
-        attr = screen.menu(map(str,numbers), pos, info=scaninfo, showall=True,
-                           selected=plotscans)
+        submitoptions = {"proceed":ord("p")}
+        attr = screen.menu(map(str,numbers), pos, submit=submitoptions, 
+                           info=scaninfo, showall=True, selected=plotscans)
         
-        if attr=="exit":
+        if attr in ["proceed", "__defaultaction"]:
             pass
+        elif attr=="cancel":
+            raise RuntimeError("Aborted by user.")
         else:
             plotscans = [int(attr)]
     plotscans = map(int, plotscans)
@@ -111,6 +132,8 @@ if args.col == None:
     for i in xrange(nbmca):
         labels.add("__MCA_%i_3d"%(i+1))
         labels.add("__MCA_%i_3d-log"%(i+1))
+        labels.add("__MCA_%i_2d-sum"%(i+1))
+        labels.add("__MCA_%i_2d-roi"%(i+1))
     with Screen() as screen:
         signal.signal(signal.SIGWINCH, screen.resize)
         screen.clear()
@@ -118,11 +141,19 @@ if args.col == None:
                           " <enter> - plot colum | p - plot/proceed")
         
         pos = cols[0] if cols else 0
-        attr = screen.menu(sorted(labels), pos, showall=True, 
+        labels = sorted(labels)
+        submitoptions = {"save to .dat":ord("s"), "plot":ord("p")}
+        attr = screen.menu(labels, pos, showall=True, submit=submitoptions,
                            selected=cols, debug=True)
         
-        if attr=="exit":
+        #raise
+        saveonly = False
+        if attr in ["plot", "__defaultaction"]:
             pass
+        elif attr=="save to .dat":
+            saveonly = True
+        elif attr=="cancel":
+            raise RuntimeError("Aborted by user.")
         else:
             cols = [attr]
 else:
@@ -132,47 +163,108 @@ if not cols:
     raise StandardError("No columns chosen.")
 
 
+print(attr)
 
 # PLOTTING ################################################################
 nrow = int(pl.sqrt(len(cols)))
 ncol = int(pl.ceil(float(len(cols))/nrow))
-fig, ax = pl.subplots(nrow, ncol, sharex=True, squeeze=False)
+if not saveonly:
+    fig, ax = pl.subplots(nrow, ncol, sharex=True, squeeze=False)
+    xnames = set()
+    vmin = ncol * nrow * [pl.inf]
+    vmax = ncol * nrow * [-pl.inf]
+else:
+    prefix = et.ask("Enter prefix for data file output", "Scan")
 
-xnames = set()
+
+if filter(lambda s: "__MCA_" in s and "roi" in s, cols):
+    nint = et.ask("Number of channels to integrate: +-", 10, int)
+    doBGcorrect = et.yesno("Perform 2nd order polynomial background subtraction?")
+
 for i in plotscans:
     scan = sf[i]
+    x = scan.datacol(1)
     labels = scan.alllabels()
-    xnames.add(labels[0])
+    if saveonly:
+        fout = r"%s_%i.dat"%(prefix, i)
+        savepath = os.path.join(os.path.splitext(fname)[0], fout)
+    
+        savecols = [x]
+        header = [labels[0]]
+    else:
+        xnames.add(labels[0])
+    
+    print("Plotting scan: %s ..."%("#%i:  %s"%(i, scan.command())))
     for j, colname in enumerate(cols):
-        x = scan.datacol(1)
-        thisax = ax.ravel()[j]
+        if not saveonly:
+            thisax = ax.ravel()[j]
         if colname in labels:
-            thisax.plot(x, scan.datacol(colname), 
-                               label="#%i:  %s"%(i, scan.command()))
-            lblax = thisax
+            if not saveonly:
+                thisax.plot(x, scan.datacol(colname), 
+                                   label="#%i:  %s"%(i, scan.command()))
+                lblax = thisax
+            else:
+                savecols.append(scan.datacol(colname))
+                header.append(colname)
         elif colname.startswith("__MCA_"):
             i_mca = int(colname.rsplit("_",2)[1])
             anf = scan.lines() * (i_mca-1)
             end = scan.lines() * i_mca
             data = [scan.mca(line+1) for line in xrange(anf, end)]
             data = pl.vstack(data).T
-            if "-log" in colname:
-                data = pl.log(data)
-            thisax.imshow(data, aspect="auto",
+            channels = pl.arange(data.shape[0])
+            if doBGcorrect:
+                for l in xrange(data.shape[1]):
+                    indf = data[:,l] < (pl.median(data[:,l]))
+                    poly = et.PolynomialFit(channels, data[:,l], indf=indf)
+                    data[:,l] -= poly
+            if "3d" in colname and not saveonly:
+                if "-log" in colname:
+                    imdata = pl.log(data)
+                    ind = pl.isfinite(imdata)
+                else:
+                    imdata = data
+                    ind = slice(None)
+                vmin[j] = min(vmin[j], imdata[ind].min())
+                vmax[j] = max(vmax[j], imdata[ind].max())
+                thisax.imshow(pl.flipud(imdata), aspect="auto",
+                                 vmin=vmin[j], vmax=vmax[j],
                                  extent=(x[0], x[-1], 0, data.shape[0]-1))
-            thisax.set_title("#%i:  %s"%(i, scan.command()))
-            thisax.grid(False)
+                thisax.set_title("#%i:  %s"%(i, scan.command()))
+                thisax.grid(False)
+            elif "2d" in colname:
+                if "roi" in colname:
+                    imax = data.sum(1).argmax()
+                    ind = slice(imax - nint, imax + nint)
+                    print("Channels in roi: %i...%i"%(imax - nint, imax + nint))
+                elif "sum" in colname:
+                    ind = slice(None)
+                if not saveonly:
+                    thisax.plot(x, data[ind].sum(0), 
+                                   label="#%i:  %s"%(i, scan.command()))
+                    lblax = thisax
+                else:
+                    savecols.append(data[ind].sum(0))
+                    header.append(colname)
+                
+                
             
         else:
             raise ValueError("Column `%s` not found."%colname)
+    
+    if saveonly:
+        if not os.path.isdir(os.path.dirname(savepath)):
+            os.mkdir(os.path.dirname(savepath))
+        et.savedat(savepath, savecols, " ".join(header))
 
-for j, colname in enumerate(cols):
-    ax.ravel()[j].set_xlabel(r" / ".join(xnames))
-    ax.ravel()[j].set_ylabel(colname)
-lblax.legend()
-pl.show()
+if not saveonly:
+    for j, colname in enumerate(cols):
+        ax.ravel()[j].set_xlabel(r" / ".join(xnames))
+        ax.ravel()[j].set_ylabel(colname)
+    lblax.legend()
+    pl.show()
 
-
+print vmin,vmax
 # STORING CURRENT SELECTION ###############################################
 if os.path.isfile(conffile):
     conf.read(conffile)
