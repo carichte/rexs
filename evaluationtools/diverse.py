@@ -11,6 +11,7 @@ import sys
 from scipy import ndimage, optimize, special
 import time
 import scantype
+from collections import OrderedDict
 
 def norm(vector):
     #return np.sqrt((np.array(vector)**2).sum(0))
@@ -182,7 +183,7 @@ def loaddat(fname, parse=True, todict=False, skiprows=0, comment="#", **kwargs):
         cols = header.split()
         if parse and len(cols) == data.shape[1]:
             if todict:
-                return dict(zip(cols, data.T))
+                return OrderedDict(zip(cols, data.T))
             else:
                 scan = scantype.scan1d(data, cols)
                 return scan
@@ -280,7 +281,7 @@ def PolynomialFit(x, y, anchors=None, avgrange=0, order=2, indf=None):
     
     return poly
 
-def yesno(question, default="yes"):
+def yesno(question, default=True):
     """
     From Recipe 577058: http://code.activestate.com/recipes/577058/
     Ask a yes/no question via raw_input() and return their answer.
@@ -296,12 +297,12 @@ def yesno(question, default="yes"):
              "no":"no",     "n":"no"}
     if default == None:
         prompt = " [y/n] "
-    elif default == "yes":
+    elif default == True:
         prompt = " [Y/n] "
-    elif default == "no":
+    elif default == False:
         prompt = " [y/N] "
     else:
-        raise ValueError("invalid default answer: '%s'" % default)
+        raise ValueError("invalid default answer: '%s'" % str(default))
 
     while 1:
         sys.stdout.write(question + prompt)
@@ -309,7 +310,10 @@ def yesno(question, default="yes"):
         if default is not None and choice == '':
             return default
         elif choice in valid.keys():
-            return valid[choice]
+            if choice.startswith("y"):
+                return True
+            else:
+                return False
         else:
             sys.stdout.write("Please respond with 'yes' or 'no' "\
                              "(or 'y' or 'n').\n")
