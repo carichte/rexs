@@ -108,6 +108,7 @@ class Screen:
         readonly.append(mark)
         items+=submit.keys()
         buttons = dict([(v,k) for (k,v) in submit.iteritems()])
+        key_unselect = kwargs.get("unselect", ord("-"))
         #info["cancel"] = str(submit)
         self.win = self.S.subwin(0,0)
         self.win.keypad(1)
@@ -185,6 +186,8 @@ class Screen:
                 position = 0
             elif key in digits:
                 position = digits.index(key)
+            elif key == key_unselect:
+                del selected[:]
             elif key in [curses.KEY_ENTER, ord('\n')]:
                 if selected and values[position] not in submit:
                     return "__defaultaction"
