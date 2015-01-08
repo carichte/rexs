@@ -173,13 +173,18 @@ if not saveonly:
     xnames = set()
     vmin = ncol * nrow * [pl.inf]
     vmax = ncol * nrow * [-pl.inf]
+    xmin = pl.inf
+    xmax = -pl.inf
 else:
     prefix = et.ask("Enter prefix for data file output", "Scan")
 
 
 if filter(lambda s: "__MCA_" in s and "roi" in s, cols):
     nint = et.ask("Number of channels to integrate: +-", 10, int)
-    doBGcorrect = et.yesno("Perform 2nd order polynomial background subtraction?")
+    doBGcorrect = et.yesno("Perform 2nd order polynomial background subtraction?",
+                           False)
+
+#print doBGcorrect
 
 for i in plotscans:
     scan = sf[i]
@@ -192,6 +197,8 @@ for i in plotscans:
         savecols = [x]
         header = [labels[0]]
     else:
+        xmin = min(x.min(), xmin)
+        xmax = max(x.max(), xmax)
         xnames.add(labels[0])
     
     print("Plotting scan: %s ..."%("#%i:  %s"%(i, scan.command())))
@@ -211,6 +218,14 @@ for i in plotscans:
             anf = scan.lines() * (i_mca-1)
             end = scan.lines() * i_mca
             data = [scan.mca(line+1) for line in xrange(anf, end)]
+            lentghs = map(len, data)
+            dims = set(lentghs)
+            while len(dims)>1:
+                i_scan = lentghs.index(min(lentghs))
+                data[i_scan] = pl.append(data[i_scan], 0)
+                lentghs = map(len, data)
+                dims = set(lentghs)
+            dims = map(pl.shape, data)
             data = pl.vstack(data).T
             channels = pl.arange(data.shape[0])
             if doBGcorrect:
@@ -225,7 +240,7 @@ for i in plotscans:
                 else:
                     imdata = data
                     ind = slice(None)
-                vmin[j] = min(vmin[j], imdata[ind].min())
+                vmin[j] = 0#min(vmin[j], imdata[ind].min())
                 vmax[j] = max(vmax[j], imdata[ind].max())
                 thisax.imshow(pl.flipud(imdata), aspect="auto",
                                  vmin=vmin[j], vmax=vmax[j],
@@ -259,12 +274,16 @@ for i in plotscans:
 
 if not saveonly:
     for j, colname in enumerate(cols):
-        ax.ravel()[j].set_xlabel(r" / ".join(xnames))
-        ax.ravel()[j].set_ylabel(colname)
+        thisax = ax.ravel()[j]
+        thisax.set_xlabel(r" / ".join(xnames))
+        thisax.set_ylabel(colname)
     lblax.legend()
+    ax[0,0].autoscale_view(tight=True)
+    pl.xlim(xmin, xmax)
     pl.show()
+    print vmin,vmax
 
-print vmin,vmax
+
 # STORING CURRENT SELECTION ###############################################
 if os.path.isfile(conffile):
     conf.read(conffile)
