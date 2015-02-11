@@ -154,6 +154,7 @@ if not plotscans:
     raise StandardError("No scan chosen.")
 
 # CHOOSING COLUMNS TO PLOT ################################################
+saveonly = False
 if args.col == None:
     labels = set(sum([sf[i].alllabels()[1:] for i in plotscans], []))
     nbmca = min([sf[i].nbmca()/sf[i].lines() for i in plotscans])
@@ -175,7 +176,6 @@ if args.col == None:
                            selected=cols, debug=True)
         
         #raise
-        saveonly = False
         if attr in ["plot", "__defaultaction"]:
             pass
         elif attr=="save to .dat":
@@ -191,7 +191,6 @@ if not cols:
     raise StandardError("No columns chosen.")
 
 
-print(attr)
 
 # PLOTTING ################################################################
 nrow = int(pl.sqrt(len(cols)))
