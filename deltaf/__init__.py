@@ -200,7 +200,8 @@ def getfquad(element, energy=None, fwhm_ev = 0, lw = 50, f1f2 = "f1",
 
 
 
-def get_energies(element, emin, emax, fwhm_ev=1e-4, eedge = None, num=100):
+def get_energies(element, emin, emax, fwhm_ev=1e-4, eedge = None, num=100,
+                 verbose=True):
     """
         Returnes an array of energies in the vicinity of the given
         limits ``emin`` and ``emax`` so that the absorption edge of 
@@ -231,8 +232,9 @@ def get_energies(element, emin, emax, fwhm_ev=1e-4, eedge = None, num=100):
         trans = np.array(trans)
         ind = np.argmin(abs(eedge - trans))
         eedge = trans[ind]
-    eedge = float(fmin(f1func, (eedge,)))
-    print "Found edge at %g"%eedge
+    eedge = float(fmin(f1func, (eedge,), disp=verbose))
+    if verbose:
+        print "Found edge at %g"%eedge
     expmin = np.floor(np.log10(fwhm_ev))
     dist = float(2*max(abs(emax - eedge), abs(emin - eedge))) * 1.2
     expmax = np.log10(dist/2.)

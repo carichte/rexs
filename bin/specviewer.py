@@ -23,10 +23,14 @@ from evaluationtools import spec
 import evaluationtools as et
 import signal
 import ConfigParser
+try:
+    import myplot
+except:
+    myplot = None
 
 
 
-#print __file__
+style = ".-"
 
 parser = argparse.ArgumentParser(description=
    "Simple text-based selection of scans and columns from `.spec` file for "
@@ -53,12 +57,14 @@ sf = spec.SPECfile(fname)
 
 
 
-confdir = os.path.join(os.path.expanduser("~"), ".cache", "specviewer")
-if not os.path.isdir(confdir):
-    try:
-        os.mkdir(confdir)
-    except:
-        pass
+cachedir = os.path.join(os.path.expanduser("~"), ".cache")
+confdir = os.path.join(cachedir, "specviewer")
+for _dir in (cachedir, confdir):
+    if not os.path.isdir(_dir):
+        try:
+            os.mkdir(_dir)
+        except:
+            pass
 conffile = os.path.join(confdir, "cache")
 if not os.path.isfile(conffile):
     try:
@@ -98,9 +104,25 @@ else:
 
 # CHOOSING SCANS TO PLOT ##################################################
 if not args.scanno:
-    scaninfo = [(str(scan.number()), scan.command()) for scan in sf]
-    numbers, commands = zip(*scaninfo)
-    scaninfo = dict(scaninfo)
+    scaninfos = []
+    for sc in sf:
+        try:
+            if not sc.lines():
+                continue
+        except:
+            continue
+        scaninfo =  "%s"%sc.command()
+        if "Energy" in sf.motornames:
+            scaninfo += "  / %7.1feV"%sc.motorpos("Energy")
+        elif sc.header("E"):
+            Energy = float(sc.header("E")[0].split()[1].strip(", "))
+            scaninfo += (45-len(scaninfo)) * " "
+            scaninfo += "%7.1feV"%(Energy*1000)
+        #print sc.number()
+        scaninfo += "  %s"%sc.date()
+        scaninfos.append((str(sc.number()), scaninfo))
+    numbers, commands = zip(*scaninfos)
+    scaninfos = dict(scaninfos)
     with Screen() as screen:
         signal.signal(signal.SIGWINCH, screen.resize)
         screen.clear()
@@ -108,14 +130,20 @@ if not args.scanno:
                           " <enter> - plot scan | ENTER - plot/proceed")
         
         pos = plotscans[0] if plotscans else 0
-        submitoptions = {"proceed":ord("p")}
+        submitoptions = {"proceed":ord("p"), "write list":ord("w")}
         attr = screen.menu(map(str,numbers), pos, submit=submitoptions, 
-                           info=scaninfo, showall=True, selected=plotscans)
+                           info=scaninfos, showall=True, selected=plotscans)
         
         if attr in ["proceed", "__defaultaction"]:
             pass
         elif attr=="cancel":
             raise RuntimeError("Aborted by user.")
+        elif attr=="write list":
+            fout = "%s_scanlist.txt"%os.path.splitext(fname)[0]
+            with open(fout, "w") as fh:
+                output = ["%s    %s"%(k,scaninfos[k]) for k in sorted(scaninfos, key=int)]
+                fh.writelines(os.linesep.join(output))
+            raise RuntimeError("Quit after writing.")
         else:
             plotscans = [int(attr)]
     plotscans = map(int, plotscans)
@@ -169,7 +197,8 @@ print(attr)
 nrow = int(pl.sqrt(len(cols)))
 ncol = int(pl.ceil(float(len(cols))/nrow))
 if not saveonly:
-    fig, ax = pl.subplots(nrow, ncol, sharex=True, squeeze=False)
+    fig, ax = pl.subplots(nrow, ncol, sharex=True, squeeze=False, figsize=(16,10))
+    fig.suptitle(os.path.basename(fname))
     xnames = set()
     vmin = ncol * nrow * [pl.inf]
     vmax = ncol * nrow * [-pl.inf]
@@ -179,8 +208,9 @@ else:
     prefix = et.ask("Enter prefix for data file output", "Scan")
 
 
-if filter(lambda s: "__MCA_" in s and "roi" in s, cols):
-    nint = et.ask("Number of channels to integrate: +-", 10, int)
+if filter(lambda s: "__MCA_" in s, cols):
+    if filter(lambda s: "roi" in s, cols):
+        nint = et.ask("Number of channels to integrate: +-", 10, int)
     doBGcorrect = et.yesno("Perform 2nd order polynomial background subtraction?",
                            False)
 
@@ -207,7 +237,7 @@ for i in plotscans:
             thisax = ax.ravel()[j]
         if colname in labels:
             if not saveonly:
-                thisax.plot(x, scan.datacol(colname), 
+                thisax.plot(x, scan.datacol(colname), style, 
                                    label="#%i:  %s"%(i, scan.command()))
                 lblax = thisax
             else:
@@ -255,7 +285,7 @@ for i in plotscans:
                 elif "sum" in colname:
                     ind = slice(None)
                 if not saveonly:
-                    thisax.plot(x, data[ind].sum(0), 
+                    thisax.plot(x, data[ind].sum(0), style, 
                                    label="#%i:  %s"%(i, scan.command()))
                     lblax = thisax
                 else:
@@ -277,9 +307,15 @@ if not saveonly:
         thisax = ax.ravel()[j]
         thisax.set_xlabel(r" / ".join(xnames))
         thisax.set_ylabel(colname)
-    lblax.legend()
+    if not all(map(lambda s: "__MCA_" in s and "3d" in s, cols)):
+        lblax.legend()
     ax[0,0].autoscale_view(tight=True)
     pl.xlim(xmin, xmax)
+    fig.tight_layout()
+    if myplot != None:
+        mypicker = myplot.addLinePicker(fig)
+        mypicker.addScaler()
+        #smth = myplot.addScaler()
     pl.show()
     print vmin,vmax
 

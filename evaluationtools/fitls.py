@@ -11,7 +11,7 @@ import wrap4leastsq
 class fitresults(object): pass 
 
 def fitls(x_m, y_m, func, guess, variables="all", power=1, weights=None, 
-          fitalg="leastsq"):
+          fitalg="leastsq", **kwargs):
     """
         
         Fitting a pre-defined function to a set of data using `leastsq' or
@@ -123,7 +123,7 @@ def fitls(x_m, y_m, func, guess, variables="all", power=1, weights=None,
     if fitalg=="leastsq":
         fitfunction, startvalues = wrap4leastsq.wrap_for_fit(residuals, guess, 
                                                       variables, unpack=False)
-        output = optimize.leastsq(fitfunction, startvalues, full_output=True)
+        output = optimize.leastsq(fitfunction, startvalues, full_output=True,**kwargs)
         #print output
         if output[1]==None: 
             stddev = [np.inf for i in range(len(variables))]
@@ -132,8 +132,12 @@ def fitls(x_m, y_m, func, guess, variables="all", power=1, weights=None,
     elif fitalg=="simplex":
         fitfunction, startvalues = wrap4leastsq.wrap_for_fit(sumofsquares, 
                                               guess, variables, unpack=False)
-        output = optimize.fmin(fitfunction, startvalues, full_output=True, 
-                 maxfun=1000*len(startvalues), maxiter=1000*len(startvalues))
+        if not "maxfun" in kwargs:
+            kwargs["maxfun"] =  100*len(startvalues)
+        if not "maxiter" in kwargs:
+            kwargs["maxiter"] = 100*len(startvalues)
+        output = optimize.fmin(fitfunction, startvalues, full_output=True, **kwargs) 
+                 
         stddev = [np.inf for i in range(len(variables))]
     if len(variables)>1: 
         fitted_param.update(dict(zip(variables, output[0]))) # minimize

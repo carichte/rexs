@@ -28,7 +28,8 @@ class SPECfile(object):
             self.specfile = specfile
         else:
             raise ValueError("Input for first argument "
-                             "``specfile'' not understood")
+                             "``specfile'' not understood: "
+                             "%s"%str(specfile))
         num = self.specfile.list().split(":")
         num = map(int, num)
         self.first = num.pop(0)
@@ -56,6 +57,9 @@ class SPECfile(object):
     
     def get_filename(self):
         return self[self.first].fileheader("F")[0].split()[1]
+    
+    def __contains__(self, ind):
+        return (ind >= self.first) * (ind <= self.last)
     
     def __len__(self):
         return self.length
