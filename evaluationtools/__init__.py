@@ -12,6 +12,6 @@ from scantype import *
 from energy_calibration import *
 from fitls import *
 #import absorption
-#import spec
+import spec
 #import rebinning
 import average

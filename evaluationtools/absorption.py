@@ -287,11 +287,13 @@ class Absorption(object):
         t_th = np.tan(np.radians(self.p["theta"]))
         s_in = np.sin(np.radians(omega + self.p["theta"]))
         
+        
         Int = parts * Q / (2*mu_tot) * (1 - t_om/t_th) \
             * (1 - np.exp(-2*mu_tot*self.p["d"]/s_in/(1 - t_om/t_th)))
         Int = Int.sum(0)
         Int *= bg / Int[0]
-        return Int
+        self.Abs = Int
+        return Int * self.DAFScalc
     
     
     
@@ -408,8 +410,7 @@ class Absorption(object):
         
         w = self._weights["Reflection"]
         if self.IBragg != None and self.DAFScalc!=None and w.sum() > 0.:
-            self.Abs = self.calc_Reflection()
-            res.append((self.IBragg - self.Abs * self.DAFScalc) * w)
+            res.append((self.IBragg - self.calc_Reflection()) * w)
         
         w = self._weights["Absorption"]
         if w.sum() > 0.:
