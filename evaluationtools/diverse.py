@@ -144,13 +144,16 @@ def savedat(fname, data, header="", xcol=None, **kwargs):
     if isinstance(data, dict):
         data = data.copy()
         if xcol==None:
-            raise ValueError("If dictionary is given, the 1st column (xcol) has to be specified")
-        if isinstance(xcol, dict):
-            header = " ".join(xcol.keys() + data.keys())
+            #raise ValueError("If dictionary is given, the 1st column (xcol)"
+            #                 "has to be specified")
+            header = " ".join(map(str, data.keys()))
+            data = np.vstack(data.values()).T
+        elif isinstance(xcol, dict):
+            header = " ".join(xcol.keys() + map(str, data.keys()))
             data = np.vstack(xcol.values() + data.values()).T
         elif isinstance(xcol, str):
             xval = data.pop(xcol)
-            header = " ".join([xcol] + data.keys())
+            header = " ".join([xcol] + map(str, data.keys()))
             data = np.vstack([xval] + data.values()).T
     elif isinstance(data, (tuple, list)):
         data = np.vstack((data)).T
@@ -190,6 +193,28 @@ def loaddat(fname, parse=True, todict=False, skiprows=0, comment="#", **kwargs):
         else:
             return data, header
 
+
+def listdir(path, include = [], exclude = []):
+    if os.path.isdir(path):
+        pass
+    elif os.path.isfile(path):
+        path = os.path.dirname(path)
+    else:
+        raise ValueError("Invalid input for `path`: %s"%str(path))
+    
+    if isinstance(include, str):
+        include = [include]
+    if isinstance(exclude, str):
+        exclude = [exclude]
+    
+    flist = os.listdir(path)
+    
+    for part in include:
+        flist = filter(lambda s: part in s, flist)
+    for part in exclude:
+        flist = filter(lambda s: part not in s, flist)
+    
+    return flist
 
 def get_period(x, y, lookat = "diff", tolerance=1e-6, verbose=False):
     """
@@ -280,6 +305,7 @@ def PolynomialFit(x, y, anchors=None, avgrange=0, order=2, indf=None):
         poly = sum([vopt[i]*x**(N - 1 - i) for i in range(N)])
     
     return poly
+
 
 def yesno(question, default=True):
     """
