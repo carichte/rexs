@@ -228,11 +228,7 @@ class Absorption(object):
         
         if mu_res == None:
             mu_res = self.mu
-        if mu_res == None:
-            #if self.solve_data != "Fluorescence":
-            #self.solve_mu_tot()
-            self.mu_tot
-            mu_res = self.mu
+        
         mu_res = abs(mu_res)
         
         s_in = np.sin(np.radians(self.p["theta"] + omega))
