@@ -48,7 +48,8 @@ class scan1d(object):
                 units.append(unit.groups()[-1])
             else:
                 units.append("")
-            field = re.match("([a-zA-Z]\w*[a-zA-Z0-9])",field)
+            
+            field = re.match("([a-zA-Z][a-zA-Z0-9]*)",field)
             if field==None:
                 fields[i] = "field%i"%i
             else:
