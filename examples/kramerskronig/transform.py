@@ -9,17 +9,18 @@
 # Copyright (c) 2014 Carsten Richter  All rights reserved.
 #----------------------------------------------------------------------
 import pylab as pl
-import evaluationtools as et
-import mskk
+from rexs import tools
+from rexs.xray import mskk
 
 # Example how to use the Kramers Kronig Transformation
 
 # correction if bad behavior on the borders, but may cause const. offset of result
-corr=0
+corr=1
 
-data = et.loaddat("sto_f2.dat")
+
+data = tools.loaddat("sto_f2.dat", skiprows=1)
 #data[1]*=2
-pl.plot(data[0], data[1], label="$\\Delta f^{\\prime\\prime}$ measured")
+pl.plot(data[0], data[1], "-", label="$\\Delta f^{\\prime\\prime}$ measured")
 
 KKtrans = mskk.Transform(data[0], "Ti", edges="K")
 

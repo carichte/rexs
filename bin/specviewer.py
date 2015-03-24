@@ -15,14 +15,16 @@
 import os
 import sys 
 import argparse
-import pylab as pl
-import evaluationtools
 import hashlib
-from evaluationtools._custom_screen import Screen
-from evaluationtools import spec
-import evaluationtools as et
-import signal
 import ConfigParser
+import signal
+
+import pylab as pl
+
+import rexs.tools as rt
+from rexs.tools._custom_screen import Screen
+from rexs.io import spec
+
 try:
     import myplot
 except:
@@ -204,13 +206,13 @@ if not saveonly:
     xmin = pl.inf
     xmax = -pl.inf
 else:
-    prefix = et.ask("Enter prefix for data file output", "Scan")
+    prefix = rt.ask("Enter prefix for data file output", "Scan")
 
 
 if filter(lambda s: "__MCA_" in s, cols):
     if filter(lambda s: "roi" in s, cols):
-        nint = et.ask("Number of channels to integrate: +-", 10, int)
-    doBGcorrect = et.yesno("Perform 2nd order polynomial background subtraction?",
+        nint = rt.ask("Number of channels to integrate: +-", 10, int)
+    doBGcorrect = rt.yesno("Perform 2nd order polynomial background subtraction?",
                            False)
 
 #print doBGcorrect
@@ -260,7 +262,7 @@ for i in plotscans:
             if doBGcorrect:
                 for l in xrange(data.shape[1]):
                     indf = data[:,l] < (pl.median(data[:,l]))
-                    poly = et.PolynomialFit(channels, data[:,l], indf=indf)
+                    poly = rt.PolynomialFit(channels, data[:,l], indf=indf)
                     data[:,l] -= poly
             if "3d" in colname and not saveonly:
                 if "-log" in colname:
@@ -299,7 +301,7 @@ for i in plotscans:
     if saveonly:
         if not os.path.isdir(os.path.dirname(savepath)):
             os.mkdir(os.path.dirname(savepath))
-        et.savedat(savepath, savecols, " ".join(header))
+        rt.savedat(savepath, savecols, " ".join(header))
 
 if not saveonly:
     for j, colname in enumerate(cols):

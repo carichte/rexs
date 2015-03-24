@@ -8,16 +8,27 @@ if len(sys.argv)<2:
 
 
 setup( name = "rexs", 
-       version = "0.1",
-       ext_modules = [Extension("deltaf.deltaf", ["deltaf/deltaf.f"]), 
-                      Extension("rebin.librebin", ["rebin/rebin.c"])],
-       packages = ["mskk", "evaluationtools", "deltaf", "rebin"],
-       package_data={"deltaf": ["*.npz"]},
+       version = "0.2",
+       ext_modules = [Extension("rexs.xray.deltaf.deltaf", ["rexs/xray/deltaf/deltaf.f"]), 
+                      Extension("rexs.tools.rebin.librebin", ["rexs/tools/rebin/rebin.c"])],
+       packages = ["rexs", 
+                   "rexs.xray", 
+                   "rexs.xray.mskk", 
+                   "rexs.xray.deltaf", 
+                   "rexs.io", 
+                   "rexs.tools",
+                   "rexs.tools.rebin"
+                   ],
+       package_data={"rexs": ["xray/deltaf/*.npz",
+                              "xray/elementdata.sqlite"]
+                     },
        author = "Carsten Richter", 
        author_email = "carsten.richter@desy.de",
-       description = "rexs - toolkit for evaluation of resonant x-ray scattering measurements.",
+       description = "rexs - toolkit for evaluation of resonant x-ray "
+                     "scattering measurements.",
        long_description = """
-                             rexs - toolkit for evaluation of resonant x-ray scattering measurements
+                             rexs - toolkit for evaluation of resonant x-ray 
+                             scattering measurements
                           """
      )
 

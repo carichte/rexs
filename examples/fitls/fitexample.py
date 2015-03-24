@@ -9,13 +9,13 @@
 # Copyright (c) 2014 Carsten Richter  All rights reserved.
 #----------------------------------------------------------------------
 import pylab as pl
-import evaluationtools as et
+from rexs import tools
 
 
 
 def twogauss(x, cen1, cen2, ymax1, ymax2, w1, w2, offset):
-    return et.gaussian(x, cen1, ymax1, w1) \
-         + et.gaussian(x, cen2, ymax2, w2) \
+    return tools.gaussian(x, cen1, ymax1, w1) \
+         + tools.gaussian(x, cen2, ymax2, w2) \
          + offset
 
 
@@ -28,13 +28,13 @@ pl.plot(x_m, y_m, ".k", label="data", ms=2)
 
 guess = dict((k,2*pl.rand()-1) for k in realparam) # random start values
 
-fit = et.fitls(x_m, y_m, twogauss, guess, fitalg="simplex")
+fit = tools.fitls(x_m, y_m, twogauss, guess, fitalg="simplex")
 pl.plot(x_m, fit.ysim, "-r", label="simplex")
 print("Fit results simplex: %f"%fit.err)
 print(fit.popt)
 
 
-fit = et.fitls(x_m, y_m, twogauss, guess, fitalg="leastsq")
+fit = tools.fitls(x_m, y_m, twogauss, guess, fitalg="leastsq")
 pl.plot(x_m, fit.ysim, "-g", dashes=(5,2), label="leastsq")
 print("Fit results leastsq: %f"%fit.err)
 print(fit.popt)

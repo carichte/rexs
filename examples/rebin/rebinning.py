@@ -11,7 +11,7 @@
 
 if __name__=="__main__":
     import pylab as pl
-    from rebin import rebin1d
+    from rexs.tools.rebin import rebin1d
     x = pl.linspace(-20,20,1001)
     num = pl.ones(1001)
     y = pl.sin(x) + 0.*pl.rand(len(x))
