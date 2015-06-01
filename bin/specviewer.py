@@ -316,6 +316,7 @@ if not saveonly:
     if myplot != None:
         mypicker = myplot.addLinePicker(fig)
         mypicker.addScaler()
+        mypicker.addSaver()
         #smth = myplot.addScaler()
     pl.show()
     print vmin,vmax

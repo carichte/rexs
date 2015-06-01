@@ -103,6 +103,10 @@ class FIOdata(object):
             self.colname = colname
         
         words = self.comment.split()
+        
+        if "sampling" in words:
+            ind = words.index("sampling")
+            self.sampletime = float(words[ind+1])
         try:
             i1 = words.index("ended")
             day = words[i1-2]

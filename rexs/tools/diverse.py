@@ -245,7 +245,7 @@ def get_period(x, y, lookat = "diff", tolerance=1e-6, verbose=False):
     return period.mean()
     
 
-def PolynomialFit(x, y, anchors=None, avgrange=0, order=2, indf=None):
+def PolynomialFit(x, y, anchors=None, avgrange=0, order=2, indf=None, verbose=True):
     """
         Returns a fitted polynomial.
         Two scenarios are supported:
@@ -290,6 +290,8 @@ def PolynomialFit(x, y, anchors=None, avgrange=0, order=2, indf=None):
         start = [1]
         start.extend((N-1)*[0])
         popt, pcov = optimize.curve_fit(func, x[ind], y[ind], p0=start)
+        if verbose:
+            print popt
         poly = func(x, *popt)
     else:
         if avgrange==0:
@@ -306,6 +308,8 @@ def PolynomialFit(x, y, anchors=None, avgrange=0, order=2, indf=None):
         res = lambda v: sum([v[i]*anchors**(N - 1 - i) for i in range(N)]) - yi
         vopt = optimize.broyden1(res, v0)
         poly = sum([vopt[i]*x**(N - 1 - i) for i in range(N)])
+        if verbose:
+            print vopt
     
     return poly
 

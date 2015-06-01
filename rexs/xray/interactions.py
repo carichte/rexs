@@ -87,6 +87,10 @@ def get_f1f2_from_db(element, energy = None,
     except:
         Z = int(get_element(element)[-1])
     
+    
+    if Z<4 and table=="Sasaki":
+        table = "Windt"
+    
     if not os.path.isfile(database):
         raise ValueError("File not found: %s"%database)
     
@@ -103,8 +107,8 @@ def get_f1f2_from_db(element, energy = None,
         result = np.array(cur.fetchall(), dtype=float).T
         dbi.close()
         if len(result)<2:
-            print("No form factors found for %s in table '%s'. Trying Henke database..." %(element, table))
-            cur.execute("SELECT energy,f1,f2 FROM f1f2_Henke WHERE element = '%s' ORDER BY energy" %element)
+            print("No form factors found for %s in table '%s'. Trying Windt database..." %(element, table))
+            cur.execute("SELECT energy,f1,f2 FROM f1f2_Windt WHERE element = '%s' ORDER BY energy" %element)
             result = np.array(cur.fetchall(), dtype=float).T
     elif table=="deltaf":
         result = list(deltaf.getf(element, energy, conv_fwhm=fwhm_eV))
@@ -137,6 +141,7 @@ def get_element(element, database = _DB_PATH):
         cur.execute("SELECT density, molar_mass, element, Z FROM elements WHERE element = '%s'" % element)
     result=cur.fetchone()
     if not result:
+        print element
         get_element_from_henke(element)
         cur.execute("SELECT density, molar_mass FROM elements WHERE element = '%s'" % element)
         result=cur.fetchone()

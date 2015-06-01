@@ -101,6 +101,9 @@ def fitls(x_m, y_m, func, guess, variables="all", power=1, weights=None,
         ind = y_m>0
         def residuals(v):
             return (func(x_m[ind], **v) / y_m[ind] - 1)**power
+    elif weights=="Rval":
+        def residuals(v):
+            return (func(x_m,**v) - y_m)/abs(y_m).sum()
     elif hasattr(weights, "__iter__")\
      and hasattr(weights, "__len__")\
      and len(weights)==len(x_m):
@@ -118,7 +121,7 @@ def fitls(x_m, y_m, func, guess, variables="all", power=1, weights=None,
     def residualswrap(v):
         if verbose:
             err = residuals(v)
-            print("%g"%(err**2).sum())
+            print("%g"%(err**2).sum())/len(x_m)
             return err
         else:
             return residuals(v)
@@ -154,14 +157,14 @@ def fitls(x_m, y_m, func, guess, variables="all", power=1, weights=None,
         fitted_param.update(dict([(variables[0], output[0])])) # minimize
         stddev_dict = dict([(variables[0], stddev)])
     
-    y_s = func(x_m, **fitted_param)
     result = fitresults()
+    result.yguess = func(x_m, **guess)
+    y_s = func(x_m, **fitted_param)
     result.popt = fitted_param
     result.err = sumofsquares(fitted_param)/len(x_m)
     result.stddev = stddev_dict
     result.Rval = abs(y_m - y_s).sum()/abs(y_m).sum()
     result.ysim = y_s
-    result.yguess = func(x_m, **guess)
     result.func = lambda x: func(x, **fitted_param)
     if verbose:
         print("Results of %s fit:\n"    

@@ -76,7 +76,7 @@ def get_transition(element, transition=None, col="Direct"):
             db.close()
     if transition==None:
         transition = ""
-    output = [(edge, energies[i]) for (i, edge) in enumerate(transitions) if edge.startswith(transition)]
+    output = [(edge, energies[i]) for (i, edge) in enumerate(transitions) if transition in edge]
     output = filter(lambda s: ~np.isnan(s[1]), output)
     return dict(output)
     
@@ -120,9 +120,20 @@ def getf(element, energy, conv_fwhm=0):
         Outputs:
             f1, f2 Tuple
     """
-    try: Z = int(element)
-    except: Z = elements.Z[element]
+    try:
+        Z = int(element)
+    except: 
+        if element in elements.Z:
+            Z = elements.Z[element]
+        else:
+            Z = None
+    if Z==None or Z>93:
+        raise ValueError("Invalid element / element number: %s. "
+                         "(Only elements from H to U allowed)."%str(Z))
+    energy = np.array(energy, ndmin=1)
     diffE = np.unique(np.diff(energy))
+    if not len(diffE):
+        return deltaf.clcalc(Z, energy)
     dE = abs(diffE.min())
     fwhm_chan = abs(float(conv_fwhm))/dE/2.
     # make equally spaced data:
@@ -165,6 +176,7 @@ def getfquad(element, energy=None, fwhm_ev = 0, lw = 50, f1f2 = "f1",
         energy, iedge = get_energies(Z, 1000, 10000, fwhm_ev=fwhm_ev)
         return_ene = True
     else:
+        energy = np.array(energy, ndmin=1)
         return_ene = False
     
     if f1f2 == "f2" or f1f2 == 1:
