@@ -44,6 +44,7 @@ class scan1d(object):
             "Need a sequence for argument #0 (fields)."
         assert all([isinstance(name, (str, unicode)) for name in fields])
         units = []
+        attr = []
         for i, field in enumerate(fields):
             field = str(field)
             unit  = re.match("_\((.+)\)",field)
@@ -52,11 +53,13 @@ class scan1d(object):
             else:
                 units.append("")
             
-            field = re.sub(r'\W', '', field).lstrip(string.digits)
+            attr.append(re.sub(r'\W', '', field).lstrip(string.digits))
+            #field = re.sub(r'\W', '', field).lstrip(string.digits)
             if field=="":
                 fields[i] = "field%i"%i
             else:
                 fields[i] = field
+        self._attr = attr
         self.fields = fields
         self.units = units
         
@@ -110,6 +113,8 @@ class scan1d(object):
         """
         if isinstance(attr, str) and attr in self.fields:
             self.data[self.fields.index(attr)] = val
+        elif isinstance(attr, str) and attr in self._attr:
+            self.data[self._attr.index(attr)] = val
         elif attr=="x":
             self.data[0] = val
         elif isinstance(attr, (int, long)):
@@ -122,8 +127,10 @@ class scan1d(object):
             Rewritten to handle columns names in scan1d.fields.
             Only called when `attr' is actually not found.
         """
-        if attr=="fields":
+        if attr in ["fields", "_attr"]:
             return []
+        elif isinstance(attr, str) and attr in self._attr:
+            return self.data[self._attr.index(attr)]
         elif isinstance(attr, str) and attr in self.fields:
             return self.data[self.fields.index(attr)]
         elif attr=="x":
@@ -138,7 +145,7 @@ class scan1d(object):
     __setattr__ = __setitem__
     
     def __dir__(self):
-        return self.__dict__.keys() + dir(scan1d) + self.fields
+        return self.__dict__.keys() + dir(scan1d) + self._attr
     
     def crop(self, ind):
         """
