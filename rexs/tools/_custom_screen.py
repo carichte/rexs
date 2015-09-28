@@ -109,6 +109,8 @@ class Screen:
         items+=submit.keys()
         buttons = dict([(v,k) for (k,v) in submit.iteritems()])
         key_unselect = kwargs.get("unselect", ord("-"))
+        key_groupselect = kwargs.get("groupselect", ord("+"))
+        key_groupunselect = kwargs.get("groupunselect", ord("_"))
         #info["cancel"] = str(submit)
         self.win = self.S.subwin(0,0)
         self.win.keypad(1)
@@ -188,6 +190,18 @@ class Screen:
                 position = digits.index(key)
             elif key == key_unselect:
                 del selected[:]
+            elif key == key_groupselect:
+                for p in xrange(position, 0, -1):
+                    if values[p] in selected:
+                        break
+                    else:
+                        selected.append(values[p])
+            elif key == key_groupunselect:
+                for p in xrange(position, 0, -1):
+                    if values[p] in selected:
+                        selected.remove(values[p])
+                    else:
+                        break
             elif key in [curses.KEY_ENTER, ord('\n')]:
                 if selected and values[position] not in submit:
                     return "__defaultaction"
@@ -202,7 +216,7 @@ class Screen:
                 if values[position] in submit:
                     continue
                 elif values[position] in selected:
-                    selected.pop(selected.index(values[position]))
+                    selected.remove(values[position])
                 else:
                     selected.append(values[position])
         

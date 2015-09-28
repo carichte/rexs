@@ -229,10 +229,10 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True,
         if monitor!=None:
             mon = dat[colname.index(monitor)]
         
-        if col2theta in motorpos:
-            tth = motorpos[col2theta] * np.ones_like(dat[0])
-        elif col2theta in colname:
+        if col2theta in colname:
             tth = dat[colname.index(col2theta)]
+        elif col2theta in motorpos:
+            tth = motorpos[col2theta] * np.ones_like(dat[0])
         else:
             raise ValueError("Column for 2-theta not found:%s"%col2theta)
         

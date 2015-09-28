@@ -45,6 +45,10 @@ parser.add_argument("scanno", type=int, default=None,
                     help="Numbers of scans to plot", nargs="*")
 parser.add_argument("-c", "--col", type=str, default=None,
                     help="Name of columns to plot for each scan")
+parser.add_argument("-x", "--xaxis", type=str, default=None,
+                    help="Name of columns of independent data")
+parser.add_argument("-n", "--normalize", type=str, default=None,
+                    help="Name of columns of independent data")
 #parser.add_argument("-o", "--outfile", type=str, 
 #                    default="fdmnes_overview.csv", help="output file")
 args = parser.parse_args()
@@ -219,8 +223,13 @@ if filter(lambda s: "__MCA_" in s, cols):
 
 for i in plotscans:
     scan = sf[i]
-    x = scan.datacol(1)
     labels = scan.alllabels()
+    
+    xcol = labels.index(args.xaxis) if args.xaxis else 0
+    x = scan.datacol(xcol+1)
+    
+    mon = scan.datacol(args.normalize) if args.normalize else 1
+    
     if saveonly:
         fout = r"%s_%i.dat"%(prefix, i)
         savepath = os.path.join(os.path.splitext(fname)[0], fout)
@@ -230,19 +239,20 @@ for i in plotscans:
     else:
         xmin = min(x.min(), xmin)
         xmax = max(x.max(), xmax)
-        xnames.add(labels[0])
+        xnames.add(labels[xcol])
     
     print("Plotting scan: %s ..."%("#%i:  %s"%(i, scan.command())))
     for j, colname in enumerate(cols):
         if not saveonly:
             thisax = ax.ravel()[j]
         if colname in labels:
+            coldata = scan.datacol(colname)/mon
             if not saveonly:
-                thisax.plot(x, scan.datacol(colname), style, 
+                thisax.plot(x, coldata, style, 
                                    label="#%i:  %s"%(i, scan.command()))
                 lblax = thisax
             else:
-                savecols.append(scan.datacol(colname))
+                savecols.append(coldata)
                 header.append(colname)
         elif colname.startswith("__MCA_"):
             i_mca = int(colname.rsplit("_",2)[1])
@@ -264,6 +274,7 @@ for i in plotscans:
                     indf = data[:,l] < (pl.median(data[:,l]))
                     poly = rt.PolynomialFit(channels, data[:,l], indf=indf)
                     data[:,l] -= poly
+            data /= mon
             if "3d" in colname and not saveonly:
                 if "-log" in colname:
                     imdata = pl.log(data)
@@ -317,6 +328,7 @@ if not saveonly:
         mypicker = myplot.addLinePicker(fig)
         mypicker.addScaler()
         mypicker.addSaver()
+        mypicker.addEraser()
         #smth = myplot.addScaler()
     pl.show()
     print vmin,vmax
