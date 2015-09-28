@@ -103,7 +103,7 @@ def get_f1f2_from_db(element, energy = None,
         if table=="deltaf":
             raise ValueError("When using the table `deltaf` the energy"
                              "needs to be specified.")
-        cur.execute("SELECT energy,f1,f2 FROM f1f2_" + table + " WHERE element = '%s' ORDER BY energy" %element)
+        cur.execute("SELECT energy,f1,f2 FROM f1f2_%s WHERE element = '%s' ORDER BY energy" %(table, element))
         result = np.array(cur.fetchall(), dtype=float).T
         dbi.close()
         if len(result)<2:
@@ -117,7 +117,7 @@ def get_f1f2_from_db(element, energy = None,
         from scipy import interpolate
         dbi = sqlite3.connect(database)
         cur = dbi.cursor()
-        cur.execute("SELECT energy,f1,f2 FROM f1f2_" + table + " WHERE element = '%s' ORDER BY energy" %element)
+        cur.execute("SELECT energy,f1,f2 FROM f1f2_%s WHERE element = '%s' ORDER BY energy" %(table, element))
         result = np.array(cur.fetchall(), dtype=float)
         dbi.close()
         ffunc = interpolate.interp1d(result[:,0], (result[:,1], result[:,2]), bounds_error=False)
@@ -125,9 +125,9 @@ def get_f1f2_from_db(element, energy = None,
     # relativistic corrections (wrong in Sasaki, not done in Chantler)
     # X-ray data booklet (2009) Ch. 1.7 Eq 5
     if table=="Sasaki":
-        result[0] += ((Z/85.455397464248506)**2.5228823203476805) 
+        result[-2] += ((Z/85.455397464248506)**2.5228823203476805) 
     if table=="Chantler":
-        result[0] += -((Z/82.5)**2.37)
+        result[-2] += -((Z/82.5)**2.37)
     return result
 
 
