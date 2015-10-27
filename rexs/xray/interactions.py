@@ -78,7 +78,7 @@ def get_components(compount, reduce_only=False):
 
 
 def get_f1f2_from_db(element, energy = None,
-                     database = _DB_PATH, table="Henke", fwhm_eV = 0.):
+                     database = _DB_PATH, table="Henke", fwhm_eV = 0., relcorr=True):
     assert (table in supported_tables), \
         "input table has to be one of: %s "%supported_tables.__repr__()
     try:
@@ -124,10 +124,11 @@ def get_f1f2_from_db(element, energy = None,
         result = ffunc(energy)
     # relativistic corrections (wrong in Sasaki, not done in Chantler)
     # X-ray data booklet (2009) Ch. 1.7 Eq 5
-    if table=="Sasaki":
-        result[-2] += ((Z/85.455397464248506)**2.5228823203476805) 
-    if table=="Chantler":
-        result[-2] += -((Z/82.5)**2.37)
+    if relcorr:
+        if table=="Sasaki":
+            result[-2] += ((Z/85.455397464248506)**2.5228823203476805) 
+        if table=="Chantler":
+            result[-2] += -((Z/82.5)**2.37)
     return result
 
 
