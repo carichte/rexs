@@ -333,7 +333,8 @@ if not saveonly:
     pl.show()
     print vmin,vmax
 
-
+print plotscans
+print cols
 # STORING CURRENT SELECTION ###############################################
 if os.path.isfile(conffile):
     conf.read(conffile)
