@@ -1,3 +1,5 @@
+import numpy as np
+
 def rebin(x, y, weights=None, bins=None, xmin=None, xmax=None,
           discard_empty=False):
     """
@@ -23,8 +25,8 @@ def rebin(x, y, weights=None, bins=None, xmin=None, xmax=None,
         weights = np.ones(len(x))
     else:
         weights = np.hstack(weights)[ind]
-    y, newx = np.histogram(x, bins=bins, weights=y)
-    num, newx = np.histogram(x, bins=bins, weights=weights)
+    y, newx = np.histogram(x, bins=bins, weights=y, range=(xmin, xmax))
+    num, newx = np.histogram(x, bins=bins, weights=weights, range=(xmin, xmax))
     dx = newx[1] - newx[0]
     x = newx[1:] - dx/2.
     y /= num
