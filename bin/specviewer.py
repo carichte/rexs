@@ -111,7 +111,7 @@ else:
 # CHOOSING SCANS TO PLOT ##################################################
 if not args.scanno:
     scaninfos = []
-    for sc in sf:
+    for sc in sf.specfile:
         try:
             if not sc.lines():
                 continue

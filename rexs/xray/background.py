@@ -53,7 +53,7 @@ def BackgroundXRD(pattern, span=20, ftol=1e-4, maxiter=2500, nsigma=1,
         #    print "median"
         #    pattern =  ndimage.median_filter(pattern, 3)
         smoothpattern = ndimage.uniform_filter1d(pattern, size=(2*span+1),
-                                                 mode="reflect")
+                                                 mode="nearest")
         newerr=((smoothpattern - pattern)**2).sum()
         ind = (pattern + nsigma*np.sqrt(pattern))>smoothpattern
         pattern[ind]=smoothpattern[ind]

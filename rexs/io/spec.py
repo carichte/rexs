@@ -34,10 +34,11 @@ class SPECfile(object):
                              "``specfile'' not understood: "
                              "%s"%str(specfile))
         num = self.specfile.list().split(":")
-        num = map(int, num)
-        self.first = num.pop(0)
+        #print num
+        #num = map(int, num)
+        self.first = int(num[0])
         try:
-            self.last = num.pop(0)
+            self.last = int(num[-1])
         except IndexError:
             self.last = self.first
         self.date = self.specfile.date()

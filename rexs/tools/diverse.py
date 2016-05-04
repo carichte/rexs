@@ -394,3 +394,19 @@ class TempExpansion(object):
                   + np.array(self.gamma) * (Temperature - self.Tref)**3
         return shrinkage
 
+
+def roots(x, y):
+    ind  = (y>0)[:-1] * ((y[:-1] + np.diff(y)) < 0)
+    ind += (y<0)[:-1] * ((y[:-1] + np.diff(y)) > 0)
+    
+    #return (x[:-1][ind] * y[:-1][ind] + y[1:][ind] * x[1:][ind])/2.
+    m = (x[1:][ind] - x[:-1][ind])/(y[1:][ind] - y[:-1][ind])
+    return x[:-1][ind] - m * y[:-1][ind]
+
+
+def mycol(num):
+    import matplotlib
+    x = np.linspace(0.4,0.9,num)
+    f = lambda v: matplotlib.colors.hsv_to_rgb(np.array([[[(2*v)%1,1-v,v]]]))[0,0]
+    col = [f(p**2) for p in x]
+    return col
