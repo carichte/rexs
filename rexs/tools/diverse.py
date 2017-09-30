@@ -145,7 +145,7 @@ def savedat(fname, data, header="", xcol=None, **kwargs):
         header = " ".join(header)
     if isinstance(data, dict):
         data = data.copy()
-        if xcol==None:
+        if xcol is None:
             #raise ValueError("If dictionary is given, the 1st column (xcol)"
             #                 "has to be specified")
             header = " ".join(map(str, data.keys()))
@@ -281,7 +281,7 @@ def PolynomialFit(x, y, anchors=None, avgrange=0, order=2, indf=None, verbose=Tr
                 indf : boolean array, same length as x and y
                        a mask for x and y to choose a range for fit.
     """
-    if anchors==None:
+    if anchors is None:
         N = order + 1
         func = lambda x, *v: sum([v[i]*x**(N - 1 - i) for i in reversed(range(N))])
         ind = ~np.isnan(y)

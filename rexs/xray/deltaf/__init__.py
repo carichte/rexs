@@ -74,7 +74,7 @@ def get_transition(element, transition=None, col="Direct"):
     finally:
         if hasattr(db, "close"):
             db.close()
-    if transition==None:
+    if transition is None:
         transition = ""
     output = [(edge, energies[i]) for (i, edge) in enumerate(transitions) if transition in edge]
     output = filter(lambda s: ~np.isnan(s[1]), output)
@@ -127,7 +127,7 @@ def getf(element, energy, conv_fwhm=0):
             Z = elements.Z[element]
         else:
             Z = None
-    if Z==None or Z>93:
+    if Z is None or Z>93:
         raise ValueError("Invalid element / element number: %s. "
                          "(Only elements from H to U allowed)."%str(Z))
     energy = np.array(energy, ndmin=1)
@@ -172,7 +172,7 @@ def getfquad(element, energy=None, fwhm_ev = 0, lw = 50, f1f2 = "f1",
     
     fwhm_ev = abs(fwhm_ev)
     
-    if energy==None:
+    if energy is None:
         energy, iedge = get_energies(Z, 1000, 10000, fwhm_ev=fwhm_ev)
         return_ene = True
     else:
@@ -296,7 +296,7 @@ def get_smooth(energy, element, f1=None, f2=None, fwhm=5., edge=None,
     
     
     width = min(abs(energy[0] - eedge), abs(energy[-1] - eedge))
-    if weights==None:
+    if weights is None:
         weights = np.ones(len(energy))
         weights[5:-5]/= 10.
     guess = dict(E0=0, scale=1)

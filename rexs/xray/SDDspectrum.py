@@ -104,13 +104,13 @@ class SDDspectrum(object):
             raise
     
     def __call__(self, x=None):
-        if x==None: x = self.channels
+        if x is None: x = self.channels
         output = self.bg * np.ones(len(x))
         for edge in self.edges.keys():
             if self.edges[edge] < (self.elastic - self.preedge):
                 for line in self.lines[edge]:
                     output += self.detector_response(x, line[1], self.strengths[edge]*line[2])
-        if not self.elastic==None:
+        if not self.elastic is None:
             output += self.detector_response(x, self.elastic, self.strengths["elastic"])
             if hasattr(self, "twotheta"):
                 output += self.detector_response(x, self.Ecompton, self.strengths["elastic"]*self.strengths["compton"])
@@ -225,7 +225,7 @@ class SDDspectrum(object):
         self.energy = (self.channels - self.p["K0"]) / self.p["c"]
         if average:
             self.mcadata = ndimage.uniform_filter1d(self.mcadata.astype(float), average)
-        if energy==None and hasattr(self, "mca"):
+        if energy is None and hasattr(self, "mca"):
             try:
                 self.elastic = self.mca.parameters["ENERGY"]
             except KeyError:
@@ -266,7 +266,7 @@ class SDDspectrum(object):
         for i in range(len(self.ShapeVars), len(self.StrengthVars) + len(self.RatioVars)):
             fp[i] = abs(fp[i])
         err = (ResidualFunction(fp)**2).sum()
-        if output[1]==None: stddev = [np.inf for i in range(len(self.guess))]
+        if output[1] is None: stddev = [np.inf for i in range(len(self.guess))]
         else: stddev = [np.sqrt(var) for var in output[1].diagonal()] # Kovarianzmatrix
         if verbose: print "Error at minimum: %f" %err
         return fp, stddev, err

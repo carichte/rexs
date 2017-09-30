@@ -83,7 +83,7 @@ class Transform(object):
                               kernel="normal")
         self._f2func = interpolate.interp1d(Esmooth, f2s, kind="linear", 
                                             bounds_error=False, fill_value=0.)
-        if weights==None:
+        if weights is None:
             weights = np.ones(len(energy))
             weights[5:-5]/= 10.
         self.weights=weights
@@ -92,7 +92,7 @@ class Transform(object):
         return scale*func(E-E0)
         
     def get_smooth_parts(self, f1=None, f2=None):
-        if f1==None and f2==None:
+        if f1 is None and f2 is None:
             print("No fine structure given. Specify either `f1' or `f2'"
                   " keyword argument")
             return None

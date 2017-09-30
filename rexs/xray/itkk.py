@@ -53,13 +53,13 @@ class IterativeKK(object):
                                               self.energy[-1], fwhm_ev=w)
         eedge = E[ind]
         lw = min(max(abs(emax-eedge), abs(eedge-emin))*2./w, 200.)
-        if f1func==None:
+        if f1func is None:
             #if os.path.isfile(".itkk_f1_%s.dmp")
             f1 = deltaf.getfquad(element, E, w, f1f2='f1', lw=lw) + self.Z[symbol]
             self.f1func[symbol] = interpolate.UnivariateSpline(E, f1, k=1, s=0)
         else:
             self.f1func[symbol] = f1func
-        if f2func==None:
+        if f2func is None:
             f2 = deltaf.getfquad(element, E, w, f1f2='f2', lw=lw)
             self.f2func[symbol] = interpolate.UnivariateSpline(E, f2, k=1, s=0)
         else:
@@ -80,7 +80,7 @@ class IterativeKK(object):
             self.anchors[symbol] = (anchorpoints, ReAnch + 1j * ImAnch)
     
     def iterate(self, symbols=None, KK=None, overshoot=1):
-        if KK==None:
+        if KK is None:
             KK = {}
         E = self.energy
         if symbols == None:
@@ -122,7 +122,7 @@ class IterativeKK(object):
             #if "Ti" in symbol.name or "Ba" in symbol.name:
             if KK.has_key(symbol) and KK[symbol]=="f1":
                 KK[symbol] = "f1"
-                if not ay==None:
+                if not ay is None:
                     ay = ay.imag
                 """
                 ancind = abs(E - np.array(ax)[:,np.newaxis]).argmin(-1)
@@ -152,7 +152,7 @@ class IterativeKK(object):
                 f2[ind] = newf2
             else:
                 KK[symbol] = "f2"
-                if not ay==None:
+                if not ay is None:
                     ay = ay.real - self.Z[symbol]
                 """
                 ancind = abs(E - np.array(ax)[:,np.newaxis]).argmin(-1)

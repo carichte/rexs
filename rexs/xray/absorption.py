@@ -151,9 +151,9 @@ class Absorption(object):
             the om_range input argument.
             Returns a f(omega), omega tuple.
         """
-        if omega==None:
+        if omega is None:
             omega = self.p["omega"]
-        if om_range==None:
+        if om_range is None:
             om_range = self.p["om_range"]
         if np.ndim(omega)==0:
             omega = np.array(omega, ndmin=2)
@@ -277,7 +277,7 @@ class Absorption(object):
         bg = self.p["m"] * (self.energy - self.energy[0]) + self.p["n"] 
         
         Q = LP
-        if mu_tot==None:
+        if mu_tot is None:
             #mu_tot = self.solve_mu_tot()
             mu_tot = self.mu_tot
         t_om = np.tan(np.radians(omega))
@@ -315,7 +315,7 @@ class Absorption(object):
         bgtrans = self.p["mt"] * (self.energy - self.energy[0])\
                      + self.p["nt"] 
         
-        if mu_tot==None:
+        if mu_tot is None:
             #if self.solve_data != "Transmission":
             #    mu_tot = self.solve_mu_tot()
             mu_tot = self.mu_tot
@@ -369,7 +369,7 @@ class Absorption(object):
             Returns imaginary part of scattering amplitude ``f'' for resonant
             atom and given composition.
         """
-        if mu_tot==None:
+        if mu_tot is None:
             mu_tot = self.mu_tot
         
         beta_tot = mu_tot / self.const / self.energy

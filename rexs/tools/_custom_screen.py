@@ -34,7 +34,7 @@ class Screen:
     def printlines(self, lines, offsetx=2, offsety=None, fmt=0):
         if isinstance(lines, str):
             lines = [lines]
-        if offsety==None:
+        if offsety is None:
             offsety = self.offsety
         line = 0
         width = self._x - offsetx
@@ -53,7 +53,7 @@ class Screen:
         self.S.refresh()
         return len(lines) - (i+1)
     def prompt(self, question, y=2, x=2, dy=3, dx=None, options=()):
-        if dx==None:
+        if dx is None:
             dx = self._x - x - 2
         def reprint():
             maxlen=0
@@ -227,9 +227,9 @@ class Screen:
         return values[position]
     
     def draw_title(self, title=None):
-        if title==None and hasattr(self, "title"):
+        if title is None and hasattr(self, "title"):
             title = self.title
-        elif title==None:
+        elif title is None:
             return
         else:
             self.title = title

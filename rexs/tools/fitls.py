@@ -109,7 +109,7 @@ def fitls(x_m, y_m, func, guess, variables="all", power=1, weights=None,
      and len(weights)==len(x_m):
         def residuals(v):
             return (func(x_m, **v) - y_m)**power * weights
-    elif weights==None:
+    elif weights is None:
         def residuals(v):
             return (func(x_m, **v) - y_m)**power
     else: 
@@ -136,7 +136,7 @@ def fitls(x_m, y_m, func, guess, variables="all", power=1, weights=None,
                                                       variables, unpack=False)
         output = optimize.leastsq(fitfunction, startvalues, full_output=True,**kwargs)
         #print output
-        if output[1]==None: 
+        if output[1] is None: 
             stddev = [np.inf for i in range(len(variables))]
         else: 
             stddev = [np.sqrt(var) for var in output[1].diagonal()] # Kovarianzmatrix

@@ -97,7 +97,7 @@ def get_f1f2_from_db(element, energy = None,
     if fwhm_eV>0 and not table=="deltaf":
         print("Warning: fwhm_eV>0 only supported for table `deltaf`. Ignoring.")
     
-    if energy==None:
+    if energy is None:
         dbi = sqlite3.connect(database)
         cur = dbi.cursor()
         if table=="deltaf":
@@ -198,7 +198,7 @@ def get_optical_constants(densities, materials, energy, database = _DB_PATH, tab
                        amplitude of the element described by the corresponding
                        key.
     """
-    if feff==None:
+    if feff is None:
         feff = dict({})
     if hasattr(densities, "__iter__") and hasattr(materials, "__iter__"):
         layers=len(densities)

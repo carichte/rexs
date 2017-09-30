@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #----------------------------------------------------------------------
 # Description:
 # Author: Carsten Richter <carsten.richter@desy.de>
@@ -31,7 +30,7 @@ class scan1d(object):
             Initialize new scan1d class from given field names and data
         """
         
-        if fields==None:
+        if fields is None:
             if hasattr(data, "alllabels") and hasattr(data, "data"):
                 fields = data.alllabels()
                 data = data.data()
