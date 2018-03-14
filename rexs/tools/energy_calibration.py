@@ -57,7 +57,7 @@ def energy_calibration(master, slave, col_ref, drift=False,
         refm = col_ref
         refs = col_ref
     
-    if indf==None:
+    if indf is None:
         indf = 1
     else:
         assert master.shape[0]==indf.shape[0],\

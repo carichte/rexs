@@ -10,10 +10,10 @@ from .core import *
 #        imaginary (f2) part of the dispersion correction of the scattering 
 #        amplitude `f'.
 #    """
-#    if f1 != None:
+#    if f1 is not None:
 #        f = f1
 #        f1 = True
-#    elif f2 != None:
+#    elif f2 is not None:
 #        f = f2
 #        f2 = True
 #    else:
@@ -61,7 +61,7 @@ class Transform(object):
         Esmooth = []
         for i, edge in enumerate(edges):
             edgetab = deltaf.get_edge(element)
-            if edge!=None and edge in edgetab:
+            if edge is not None and edge in edgetab:
                 eedge = edgetab[edge]
             else:
                 eedge = None
@@ -83,7 +83,7 @@ class Transform(object):
                               kernel="normal")
         self._f2func = interpolate.interp1d(Esmooth, f2s, kind="linear", 
                                             bounds_error=False, fill_value=0.)
-        if weights==None:
+        if weights is None:
             weights = np.ones(len(energy))
             weights[5:-5]/= 10.
         self.weights=weights
@@ -92,13 +92,13 @@ class Transform(object):
         return scale*func(E-E0)
         
     def get_smooth_parts(self, f1=None, f2=None):
-        if f1==None and f2==None:
+        if f1 is None and f2 is None:
             print("No fine structure given. Specify either `f1' or `f2'"
                   " keyword argument")
             return None
         
         guess = dict(E0=0, scale=1)
-        if f1 != None:
+        if f1 is not None:
             E0m = self.energy[f1.argmin()]
             print("approximate measured edge: %g"%E0m)
             guess["E0"] = E0m - self.Eedge
@@ -107,7 +107,7 @@ class Transform(object):
                            ["scale", "E0"], fitalg="simplex", 
                            weights=self.weights)
             fit.popt["func"] = self._f2func
-        elif f2 != None:
+        elif f2 is not None:
             print np.diff(f2).argmax()
             E0m = self.energy[np.diff(f2).argmax()]
             print("approximate measured edge: %g"%E0m)
@@ -145,10 +145,10 @@ class Transform(object):
             imaginary (f2) part of the dispersion correction of the scattering 
             amplitude `f'.
         """
-        if f1 != None:
+        if f1 is not None:
             f = f1
             f1 = True
-        elif f2 != None:
+        elif f2 is not None:
             f = f2
             f2 = True
         else:

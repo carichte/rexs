@@ -31,7 +31,7 @@ class scan1d(object):
             Initialize new scan1d class from given field names and data
         """
         
-        if fields==None:
+        if fields is None:
             if hasattr(data, "alllabels") and hasattr(data, "data"):
                 fields = data.alllabels()
                 data = data.data()
@@ -48,7 +48,7 @@ class scan1d(object):
         for i, field in enumerate(fields):
             field = str(field)
             unit  = re.match("_\((.+)\)",field)
-            if unit != None:
+            if unit is not None:
                 units.append(unit.groups()[-1])
             else:
                 units.append("")
@@ -90,7 +90,7 @@ class scan1d(object):
         
         self.data.insert(0, self.data.pop(independent)) # bring x to front
         
-        if units!=None:
+        if units is not None:
             assert hasattr(units, "__iter__"), \
                 "Need a sequence for argument units."
             assert all([isinstance(name, (str, unicode)) for name in units])
@@ -196,7 +196,7 @@ class scan1d(object):
         np.savetxt(outfile, np.array(self.data).T, **kwargs)
         output += outfile.getvalue()
         outfile.close()
-        if fname == None:
+        if fname is None:
             return output
         else: 
             fh = open(fname, "w")

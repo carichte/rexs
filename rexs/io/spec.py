@@ -227,7 +227,7 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True,
             print dat.shape, scan2.data().shape
             dat = np.hstack((dat, scan2.data()))
         Energy.append(float(scan.header("Energy")[0].split()[1][:-1]))
-        if monitor!=None:
+        if monitor is not None:
             mon = dat[colname.index(monitor)]
         
         if col2theta in colname:
@@ -295,7 +295,7 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True,
                 coldata = ndimage.median_filter(coldata, 5)
                 if col == "mca0":
                     coldata[[0, -1]] = np.median(coldata)
-            if monitor!=None and col!=monitor:
+            if monitor is not None and col!=monitor:
                 coldata /= mon
             if len(getall) and col in getall:
                 alldata[col].append(coldata)

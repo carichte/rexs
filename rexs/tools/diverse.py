@@ -29,9 +29,9 @@ def standard_normal(x):
     return np.exp(-x**2/2)/np.sqrt(2*np.pi)
 
 def pvoigt(x, x0, amp, w, y0=0, eta=0.5, feta=None):
-    if feta!=None:
+    if feta is not None:
         eta = special.erfc(-feta)/2.
-    return y0 + amp *    (eta  / (1+((x-x0)/w)**2) 
+    return y0 + amp *    (eta  / (1+((x-x0)/w)**2) \
                      + (1-eta) * np.exp(-np.log(2)*((x-x0)/w)**2))
 
 def kasten(x, w):
@@ -145,7 +145,7 @@ def savedat(fname, data, header="", xcol=None, **kwargs):
         header = " ".join(header)
     if isinstance(data, dict):
         data = data.copy()
-        if xcol==None:
+        if xcol is None:
             #raise ValueError("If dictionary is given, the 1st column (xcol)"
             #                 "has to be specified")
             header = " ".join(map(str, data.keys()))
@@ -276,16 +276,16 @@ def PolynomialFit(x, y, anchors=None, avgrange=0, order=2, indf=None, verbose=Tr
                 
                 order : int
                         sets the order of the polynomial for fit.
-                        ignored if anchors!=None
+                        ignored if anchors is not None
                 
                 indf : boolean array, same length as x and y
                        a mask for x and y to choose a range for fit.
     """
-    if anchors==None:
+    if anchors is None:
         N = order + 1
         func = lambda x, *v: sum([v[i]*x**(N - 1 - i) for i in reversed(range(N))])
         ind = ~np.isnan(y)
-        if indf != None:
+        if indf is not None:
             ind *= indf
         start = [1]
         start.extend((N-1)*[0])
@@ -328,7 +328,7 @@ def yesno(question, default=True):
     """
     valid = {"yes":"yes",   "y":"yes",  "ye":"yes",
              "no":"no",     "n":"no"}
-    if default == None:
+    if default is None:
         prompt = " [y/n] "
     elif default == True:
         prompt = " [Y/n] "

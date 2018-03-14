@@ -324,7 +324,7 @@ if not saveonly:
     ax[0,0].autoscale_view(tight=True)
     pl.xlim(xmin, xmax)
     fig.tight_layout()
-    if myplot != None:
+    if myplot is not None:
         mypicker = myplot.addLinePicker(fig)
         mypicker.addScaler()
         mypicker.addSaver()

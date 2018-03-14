@@ -24,7 +24,7 @@ def real(om, imag, anc_om=None, anc_re=None, verbose=True, corr=True):
         This is the special case where alpha=0 and n=1. 
         (No moments and only linear optics)
     """
-    if anc_om==None or anc_re==None:
+    if anc_om is None or anc_re is None:
         Q=0
         anc_om=np.array(())
         anc_re=np.array(())
@@ -107,7 +107,7 @@ def imag(om, real, anc_om=None, anc_im=None, verbose=True, corr=True):
         This is the special case where alpha=0 and n=1. 
         (No moments and only linear optics so far)
     """
-    if anc_om==None or anc_im==None:
+    if anc_om is None or anc_im is None:
         Q=0
         anc_om=np.array(())
         anc_im=np.array(())
@@ -147,6 +147,7 @@ def imag(om, real, anc_om=None, anc_im=None, verbose=True, corr=True):
     
     # now the integral:
     real = -real[:,np.newaxis]
+    #real = (np.append(real[0], real) +  np.append(real, real[-1]))/2. - real[:,np.newaxis]
     
     prefac = (om**2 - (anc_om**2)[:,np.newaxis]).prod(0) * 2/np.pi
     denominator1 = (om_prim**2 - anc_om**2).prod(1)[:,np.newaxis]

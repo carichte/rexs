@@ -74,7 +74,7 @@ def get_transition(element, transition=None, col="Direct"):
     finally:
         if hasattr(db, "close"):
             db.close()
-    if transition==None:
+    if transition is None:
         transition = ""
     output = [(edge, energies[i]) for (i, edge) in enumerate(transitions) if transition in edge]
     output = filter(lambda s: ~np.isnan(s[1]), output)
@@ -127,7 +127,7 @@ def getf(element, energy, conv_fwhm=0):
             Z = elements.Z[element]
         else:
             Z = None
-    if Z==None or Z>93:
+    if Z is None or Z>93:
         raise ValueError("Invalid element / element number: %s. "
                          "(Only elements from H to U allowed)."%str(Z))
     energy = np.array(energy, ndmin=1)
@@ -172,7 +172,7 @@ def getfquad(element, energy=None, fwhm_ev = 0, lw = 50, f1f2 = "f1",
     
     fwhm_ev = abs(fwhm_ev)
     
-    if energy==None:
+    if energy is None:
         energy, iedge = get_energies(Z, 1000, 10000, fwhm_ev=fwhm_ev)
         return_ene = True
     else:
@@ -237,7 +237,7 @@ def get_energies(element, emin, emax, fwhm_ev=1e-4, eedge = None, num=100,
     except: Z = elements.Z[element]
     def f1func(E):
         return deltaf.clcalc(Z, E)[0]
-    if eedge == None:
+    if eedge is None:
         eedge = .5 * (emin + emax)
         trans = get_transition(element, col="Theory")
         trans = [trans[k] for k in trans if "edge" in k]
@@ -296,11 +296,11 @@ def get_smooth(energy, element, f1=None, f2=None, fwhm=5., edge=None,
     
     
     width = min(abs(energy[0] - eedge), abs(energy[-1] - eedge))
-    if weights==None:
+    if weights is None:
         weights = np.ones(len(energy))
         weights[5:-5]/= 10.
     guess = dict(E0=0, scale=1)
-    if f1 != None:
+    if f1 is not None:
         E0m = energy[f1.argmin()]
         print("approximate measured edge: %g"%E0m)
         guess["E0"] = E0m - eedge
@@ -309,7 +309,7 @@ def get_smooth(energy, element, f1=None, f2=None, fwhm=5., edge=None,
                        fitalg="simplex", weights=weights)
         fp = fit.popt
         fp["func"] = f2func
-    elif f2 != None:
+    elif f2 is not None:
         E0m = energy[np.diff(f2).argmax()]
         print("approximate measured edge: %g"%E0m)
         guess["E0"] = E0m - eedge

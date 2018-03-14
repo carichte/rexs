@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import scipy.optimize as sopt
-from scipy import interpolate
+from scipy import interpolate, ndimage
 from . import mskk
 from . import deltaf
 
@@ -27,17 +27,20 @@ class IterativeKK(object):
         self.miller = miller
         self.energy = energy
         self.DAFS = Idafs
-        self.Ffunc = cs.DAFS(energy, miller, f1=f1start, f2=f2start, func_output=True)
+        for k in f1start:
+            cs.feed_feff(k, energy, f1start[k], f2start[k])
+        self.Ffunc = cs.DAFS(energy, miller, func_output=True)
         self.f, self.f1, self.f2 = {}, {}, {}
         self.f1tab, self.f2tab = {}, {}
         self.f1func, self.f2func = {}, {}
         self.Z = {}
         for symbol in cs.f.keys():
-            self.f1[symbol] = cs.f[symbol].real.copy()
-            self.f2[symbol] = cs.f[symbol].imag.copy()
-            self.f[symbol.name] = cs.f[symbol].copy()
+            if symbol.name.startswith("f_"):
+                self.f1[symbol] = cs.f[symbol].real.copy()
+                self.f2[symbol] = cs.f[symbol].imag.copy()
+                self.f[symbol.name] = cs.f[symbol].copy()
         #self.eneleft = 
-        self.Isim = abs(self.Ffunc(**self.f))**2
+        self.Isim = abs(self.Ffunc.dictcall(self.f))**2
         self.Isim0 = self.Isim.copy()
         self.ind={}
         self.ilim = {}
@@ -53,13 +56,13 @@ class IterativeKK(object):
                                               self.energy[-1], fwhm_ev=w)
         eedge = E[ind]
         lw = min(max(abs(emax-eedge), abs(eedge-emin))*2./w, 200.)
-        if f1func==None:
+        if f1func is None:
             #if os.path.isfile(".itkk_f1_%s.dmp")
             f1 = deltaf.getfquad(element, E, w, f1f2='f1', lw=lw) + self.Z[symbol]
             self.f1func[symbol] = interpolate.UnivariateSpline(E, f1, k=1, s=0)
         else:
             self.f1func[symbol] = f1func
-        if f2func==None:
+        if f2func is None:
             f2 = deltaf.getfquad(element, E, w, f1f2='f2', lw=lw)
             self.f2func[symbol] = interpolate.UnivariateSpline(E, f2, k=1, s=0)
         else:
@@ -72,7 +75,7 @@ class IterativeKK(object):
         iright = abs(self.energy - emax).argmin()
         self.ilim[symbol] = (ileft, iright)
         
-        if anchorpoints == None:
+        if anchorpoints is None:
             pass
         else:
             f1f2func = interpolate.interp1d(self.energy, (self.f1[symbol], self.f2[symbol]), copy=False)
@@ -80,10 +83,11 @@ class IterativeKK(object):
             self.anchors[symbol] = (anchorpoints, ReAnch + 1j * ImAnch)
     
     def iterate(self, symbols=None, KK=None, overshoot=1):
-        if KK==None:
+        if KK is None:
             KK = {}
         E = self.energy
-        if symbols == None:
+        dchan = 0.5/np.diff(E).mean() #0.5eV smear?
+        if symbols is None:
             symbols = self.f1.iterkeys()
         allind = np.zeros(len(E), dtype=bool)
         for symbol in symbols:
@@ -97,12 +101,18 @@ class IterativeKK(object):
             allind += ind
             facI = self.DAFS[ind] / self.Isim[ind]
             dF_F = np.sqrt(facI) - 1
-            dF = dF_F * self.Ffunc(**self.f)[ind]
+            Fbefore = self.Ffunc.dictcall(self.f)[ind]
+            F = (dF_F+1) * Fbefore
+#            arg = ndimage.gaussian_filter1d(np.angle(F), dchan)
+            arg = np.angle(F)
+            F = abs(F)*np.exp(1j*arg)
+            dF = F - Fbefore
             df = dF / self.diff[symbol] * overshoot
             self.f[symbol.name][ind] += df
             f1[ind] += df.real
             f2[ind] += df.imag
-            self.F1 = self.Ffunc(**self.f)
+            self.F1 = self.Ffunc.dictcall(self.f)
+            #self.F1 = F.copy()
             self.I1 = abs(self.F1)**2
             #err1 = ((self.DAFS[ind] - self.I1[ind])**2).sum()
             
@@ -122,7 +132,7 @@ class IterativeKK(object):
             #if "Ti" in symbol.name or "Ba" in symbol.name:
             if KK.has_key(symbol) and KK[symbol]=="f1":
                 KK[symbol] = "f1"
-                if not ay==None:
+                if not ay is None:
                     ay = ay.imag
                 """
                 ancind = abs(E - np.array(ax)[:,np.newaxis]).argmin(-1)
@@ -152,7 +162,7 @@ class IterativeKK(object):
                 f2[ind] = newf2
             else:
                 KK[symbol] = "f2"
-                if not ay==None:
+                if not ay is None:
                     ay = ay.real - self.Z[symbol]
                 """
                 ancind = abs(E - np.array(ax)[:,np.newaxis]).argmin(-1)
@@ -187,7 +197,7 @@ class IterativeKK(object):
                 pl.grid()
                 pl.show()
             self.f[symbol.name] = f1 + 1j * f2
-        self.Isim = abs(self.Ffunc(**self.f))**2
+        self.Isim = abs(self.Ffunc.dictcall(self.f))**2
         err = ((self.DAFS[allind] - self.Isim[allind])**2).sum()
         return err, KK
 

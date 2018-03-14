@@ -92,7 +92,7 @@ class Absorption(object):
         self.mu_fluo *= self.const * emission_energy
         self.mu_res_tab = self.mu_tot - self.mu_nonres # resonant part of absorption
         
-        if Eedge == None:
+        if Eedge is None:
             edges = deltaf.get_edge(resatom)
             edges_inv = dict([(v,k) for (k,v) in edges.iteritems()])
             Eedges = edges.values()
@@ -107,7 +107,7 @@ class Absorption(object):
         
         self.Eedge = Eedge
         
-        ind = energy < (Eedge - 5)
+        ind = (energy - dE) < (Eedge - 5)
         
         parabola = tools.PolynomialFit(np.log(energy), 
                                     np.log(self.mu_res_tab), 
@@ -151,9 +151,9 @@ class Absorption(object):
             the om_range input argument.
             Returns a f(omega), omega tuple.
         """
-        if omega==None:
+        if omega is None:
             omega = self.p["omega"]
-        if om_range==None:
+        if om_range is None:
             om_range = self.p["om_range"]
         if np.ndim(omega)==0:
             omega = np.array(omega, ndmin=2)
@@ -227,7 +227,7 @@ class Absorption(object):
         bgfluo = self.p["mf"] * (self.energy - self.energy[0]) \
                     + self.p["nf"] # lin background
         
-        if mu_res == None:
+        if mu_res is None:
             mu_res = self.mu
         
         mu_res = abs(mu_res)
@@ -277,7 +277,7 @@ class Absorption(object):
         bg = self.p["m"] * (self.energy - self.energy[0]) + self.p["n"] 
         
         Q = LP
-        if mu_tot==None:
+        if mu_tot is None:
             #mu_tot = self.solve_mu_tot()
             mu_tot = self.mu_tot
         t_om = np.tan(np.radians(omega))
@@ -315,7 +315,7 @@ class Absorption(object):
         bgtrans = self.p["mt"] * (self.energy - self.energy[0])\
                      + self.p["nt"] 
         
-        if mu_tot==None:
+        if mu_tot is None:
             #if self.solve_data != "Transmission":
             #    mu_tot = self.solve_mu_tot()
             mu_tot = self.mu_tot
@@ -340,7 +340,7 @@ class Absorption(object):
         """
         self.p.update(dict([i for i in kwargs.iteritems() if i[0] in self.p]))
         
-        if muguess == None:
+        if muguess is None:
             muguess = self.muguess
             
         
@@ -369,7 +369,7 @@ class Absorption(object):
             Returns imaginary part of scattering amplitude ``f'' for resonant
             atom and given composition.
         """
-        if mu_tot==None:
+        if mu_tot is None:
             mu_tot = self.mu_tot
         
         beta_tot = mu_tot / self.const / self.energy
@@ -401,25 +401,36 @@ class Absorption(object):
         
         
         res = []
-        if self.callback!=None:
+        if self.callback is not None:
             self.callback()
-        self.solve_mu_tot()############################################################################
+        self.solve_mu_tot()############################################################################?
+        
         
         w = self._weights["Reflection"]
-        if self.IBragg != None and self.DAFScalc!=None and w.sum() > 0.:
+        if self.IBragg is not None and self.DAFScalc is not None and w.sum() > 0.:
             res.append((self.IBragg - self.calc_Reflection()) * w)
+            if self._relative_fit:
+                res[-1] /= self.IBragg
         
         w = self._weights["Absorption"]
         if w.sum() > 0.:
             res.append((self.mu_res_tab - self.mu) * w / self.mumax)
+            if self._relative_fit:
+                ind = self.energy > self.Eedge
+                res[-1][ind] /= (self.mu_res_tab / self.mumax)[ind]
         
         w = self._weights["Transmission"]
-        if self.Transmission!=None and w.sum()>0.:
+        if self.Transmission is not None and w.sum()>0.:
             res.append((self.Transmission - self.calc_Transmission()) * w)
+            if self._relative_fit:
+                res[-1] /= self.Transmission
         
         w = self._weights["Fluorescence"]
-        if self.IFluo!=None and w.sum()>0.:
+        if self.IFluo is not None and w.sum()>0.:
             res.append((self.IFluo - self.calc_Fluorescence()) * w)
+            if self._relative_fit:
+                ind = self.energy > self.Eedge
+                res[-1][ind] /= self.IFluo[ind]
         
         res = np.hstack(res)
         err = (res**2).sum()
@@ -433,12 +444,13 @@ class Absorption(object):
         else:
             return res
         
-    def fitit(self, variables, fitalg="leastsq", callback=None, **kwargs):
+    def fitit(self, variables, fitalg="leastsq", callback=None, relative=True, **kwargs):
         """
             Fits the calculated DAFS (self.DAFScalc) to the measured Bragg 
             intensity (IBragg) by varying the geometry parameters in 
             self.p
         """
+        self._relative_fit = relative
         self.callback = callback
         self.fitalg = fitalg
         self.variables = variables
@@ -446,7 +458,6 @@ class Absorption(object):
         self.errmin = np.inf
         func, startval = wrap4leastsq.wrap_for_fit(self.residuals, self.p, variables)
         if self.fitalg == "simplex":
-            
             output = optimize.fmin(func, startval, full_output=True, **kwargs)
                    #, maxfun=1000*len(startval), maxiter=1000*len(startval))
         else:

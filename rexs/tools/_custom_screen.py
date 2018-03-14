@@ -34,7 +34,7 @@ class Screen:
     def printlines(self, lines, offsetx=2, offsety=None, fmt=0):
         if isinstance(lines, str):
             lines = [lines]
-        if offsety==None:
+        if offsety is None:
             offsety = self.offsety
         line = 0
         width = self._x - offsetx
@@ -53,7 +53,7 @@ class Screen:
         self.S.refresh()
         return len(lines) - (i+1)
     def prompt(self, question, y=2, x=2, dy=3, dx=None, options=()):
-        if dx==None:
+        if dx is None:
             dx = self._x - x - 2
         def reprint():
             maxlen=0
@@ -141,7 +141,7 @@ class Screen:
             self.win.refresh()
             curses.doupdate()
             self.draw_title()
-            #if selected!=None:
+            #if selected not is None:
             #    self.win.addstr(0, 0, 
             #        "Use: <space> - mark item/variable | <enter> - select |"\
             #        " q - quit",
@@ -162,7 +162,7 @@ class Screen:
                 if item not in (list(submit) + [mark]):
                     self.win.addstr(1+index-start, 1, '%d.'%index, mode)
                 self.win.addstr(1+index-start, space1, '%s'%item, mode)
-                if selected!=None and item in selected:
+                if selected not is None and item in selected:
                     self.win.addstr(1+index-start, 0, "*", curses.A_BOLD)
                 if item in info and showall:
                     iteminfo = info[item]
@@ -212,7 +212,7 @@ class Screen:
                 return action
             elif values[position] in readonly:
                 continue
-            elif key in [ord(' ')] and selected!=None:
+            elif key in [ord(' ')] and selected not is None:
                 if values[position] in submit:
                     continue
                 elif values[position] in selected:
@@ -227,9 +227,9 @@ class Screen:
         return values[position]
     
     def draw_title(self, title=None):
-        if title==None and hasattr(self, "title"):
+        if title is None and hasattr(self, "title"):
             title = self.title
-        elif title==None:
+        elif title is None:
             return
         else:
             self.title = title

@@ -11,17 +11,17 @@ def rebin(x, y, weights=None, bins=None, xmin=None, xmax=None,
         
     """
     x = np.hstack(x)
-    if xmin==None:
+    if xmin is None:
         xmin = x.min()
-    if xmax==None:
+    if xmax is None:
         xmax = x.max()
     ind = (x>=xmin) * (x<=xmax)
     x = x[ind]
     y = np.hstack(y)[ind]
-    if bins==None:
+    if bins is None:
         bins = (x.max()-x.min())/np.diff(np.sort(x)).max()
         bins = int(np.floor(bins))
-    if weights==None:
+    if weights is None:
         weights = np.ones(len(x))
     else:
         weights = np.hstack(weights)[ind]
