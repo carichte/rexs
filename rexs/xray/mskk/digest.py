@@ -69,7 +69,7 @@ class Transform(object):
                                        fwhm, eedge)
             Esmooth.append(smth[0])
             if i==0:
-                Eedge = smth[0][smth[1]]
+                Eedge = smth[0][int(smth[1])]
         
         self.Eedge = Eedge
         Esmooth = np.hstack(Esmooth)

@@ -29,7 +29,7 @@ class Absorption(object):
     """
     const = 10135467.657934014 # 2*eV/c/hbar
     def __init__(self, composition, resatom, energy, emission_energy, 
-                       density, dE=0., Eedge=None, table="Sasaki"):
+                       density, dE=0., Eedge=None, table="Sasaki", fwhm_eV=1):
         """
             Initialize instance to simulate fluorescence.
             The sample composition must be known and a resonant atom has to be assigned.
@@ -66,7 +66,8 @@ class Absorption(object):
         self.resatom = resatom
         self.table=table
         self.dE = dE
-        
+        self.fwhm_eV = fwhm_eV
+
         self._weights = dict(Fluorescence = np.zeros(len(energy)),
                              Transmission = np.zeros(len(energy)),
                              Reflection   = np.zeros(len(energy)),
@@ -83,12 +84,18 @@ class Absorption(object):
                                 energy - dE, table=table, feff={resatom:0})[1]
         self.beta_tot = xi.get_optical_constants(density, composition, 
                                 energy - dE, table=table)[1]
-        
-        self.mu_nonres = self.beta_nonres * self.const * energy # nonresonant part of absorption
-        self.mu_tot = self.beta_tot * self.const * energy # total absorption
+
         self.mu_fluo = xi.get_optical_constants(density, composition, 
                                                 emission_energy, 
                                                 table=table)[1]
+        
+        if fwhm_eV:
+            self.beta_nonres = tools.lorentzian_filter1d(self.beta_nonres, fwhm_eV)
+            self.beta_tot = tools.lorentzian_filter1d(self.beta_tot, fwhm_eV)
+            self.mu_fluo = tools.lorentzian_filter1d(self.mu_fluo, fwhm_eV)
+        
+        self.mu_nonres = self.beta_nonres * self.const * energy # nonresonant part of absorption
+        self.mu_tot = self.beta_tot * self.const * energy # total absorption
         self.mu_fluo *= self.const * emission_energy
         self.mu_res_tab = self.mu_tot - self.mu_nonres # resonant part of absorption
         
@@ -117,7 +124,7 @@ class Absorption(object):
         self.mu_nonres  += np.exp(parabola)
         
         self.mumax = self.mu_res_tab.max()
-        self.mu = tools.lorentzian_filter1d(self.mu_res_tab, 1)
+        self.mu = self.mu_res_tab.copy()#tools.lorentzian_filter1d(self.mu_res_tab, fwhm_eV)
         self.mu_tot = self.mu_nonres + self.mu
         self.muguess = self.mu.copy()
         # scan parameters:
@@ -386,6 +393,9 @@ class Absorption(object):
             f1, f2 = np.array(xi.get_f1f2_from_db(elements[i], 
                                                   self.energy - self.dE, 
                                                   table=self.table))
+            if self.fwhm_eV:
+                f1 = tools.lorentzian_filter1d(f1, self.fwhm_eV)
+                f2 = tools.lorentzian_filter1d(f2, self.fwhm_eV)
             beta_tot  -= f2 * amount[i]
         
         self.f2 = beta_tot / amount[ires]
