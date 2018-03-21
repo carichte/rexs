@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #----------------------------------------------------------------------
 # Description:
 # Author: Carsten Richter <carsten.richter@desy.de>
