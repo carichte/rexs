@@ -86,7 +86,7 @@ class FIOdata(object):
                     line = data.readline()
         numdata = StringIO.StringIO(line + data.read())
         data.close()
-        self.data=np.loadtxt(numdata)
+        self.data=np.loadtxt(numdata, comments="!")
         i=0
         cond = True
         if len(colname)<=1:
