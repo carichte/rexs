@@ -113,7 +113,7 @@ def _read_header(filename, comment="#", line=0):
     """
     with open(filename, "r") as myfile:
         output = ""
-        for i in xrange(line+1):
+        for i in range(line+1):
             header = myfile.readline()
         output = header.strip("\r\n%s"%comment)
     return output
@@ -151,11 +151,11 @@ def savedat(fname, data, header="", xcol=None, **kwargs):
             header = " ".join(map(str, data.keys()))
             data = np.vstack(data.values()).T
         elif isinstance(xcol, dict):
-            header = " ".join(xcol.keys() + map(str, data.keys()))
+            header = " ".join(list(xcol) + list(map(str, data)))
             data = np.vstack(xcol.values() + data.values()).T
         elif isinstance(xcol, str):
             xval = data.pop(xcol)
-            header = " ".join([xcol] + map(str, data.keys()))
+            header = " ".join([xcol] + list(map(str, data)))
             data = np.vstack([xval] + data.values()).T
     elif isinstance(data, (tuple, list)):
         data = np.vstack((data)).T
@@ -232,7 +232,7 @@ def get_period(x, y, lookat = "diff", tolerance=1e-6, verbose=False):
     while nnd==1 or (period.std()/period.mean())>tolerance:
         ind = y>y.max()/snr
         if verbose: 
-            print ind.sum(), y.max(),
+            print((ind.sum(), y.max()), end="")
         if ind.sum()<2:
             print("Warning: no periodicity found")
             return None
@@ -241,7 +241,7 @@ def get_period(x, y, lookat = "diff", tolerance=1e-6, verbose=False):
         xmax = x[ind]
         period = np.unique(np.diff(xmax))
         if verbose: 
-            print snr, nnd, period
+            print((snr, nnd, period))
     return period.mean()
     
 
@@ -291,7 +291,7 @@ def PolynomialFit(x, y, anchors=None, avgrange=0, order=2, indf=None, verbose=Tr
         start.extend((N-1)*[0])
         popt, pcov = optimize.curve_fit(func, x[ind], y[ind], p0=start)
         if verbose:
-            print popt
+            print(popt)
         poly = func(x, *popt)
     else:
         if avgrange==0:
@@ -309,7 +309,7 @@ def PolynomialFit(x, y, anchors=None, avgrange=0, order=2, indf=None, verbose=Tr
         vopt = optimize.broyden1(res, v0)
         poly = sum([vopt[i]*x**(N - 1 - i) for i in range(N)])
         if verbose:
-            print vopt
+            print(vopt)
     
     return poly
 
@@ -342,7 +342,7 @@ def yesno(question, default=True):
         choice = raw_input().lower()
         if default is not None and choice == '':
             return default
-        elif choice in valid.keys():
+        elif choice in valid:
             if choice.startswith("y"):
                 return True
             else:

@@ -3,4 +3,4 @@
     set of (x,y) points.
     See rebin.rebin
 """
-from rebin import *
+from .rebin import *

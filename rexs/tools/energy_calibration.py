@@ -5,7 +5,6 @@
 # (carsten.richter@desy.de)
 #
 import os
-
 import numpy as np
 from scipy import optimize, interpolate
 

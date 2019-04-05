@@ -1,7 +1,7 @@
 import numpy as np
 import os
-import elements
-import deltaf
+from . import elements
+from . import deltaf
 from scipy.interpolate import interp1d
 from scipy.integrate import quad
 from scipy.optimize import fmin
@@ -70,7 +70,7 @@ def get_transition(element, transition=None, col="Direct"):
         transitions = db["type"][ind]
         energies = db[col][ind]
     except Exception as errmsg:
-        print errmsg
+        print(errmsg)
     finally:
         if hasattr(db, "close"):
             db.close()
@@ -98,7 +98,7 @@ def get_edge(element, edge=None):
         ind = Z-1
         edges = dict([(col, db[col][ind]) for col in cols])
     except Exception as errmsg:
-        print errmsg
+        print(errmsg)
     finally:
         db.close()
     if edge in cols:
@@ -246,7 +246,7 @@ def get_energies(element, emin, emax, fwhm_ev=1e-4, eedge = None, num=100,
         eedge = trans[ind]
     eedge = float(fmin(f1func, (eedge,), disp=verbose))
     if verbose:
-        print "Found edge at %g"%eedge
+        print("Found edge at %g"%eedge)
     expmin = np.floor(np.log10(fwhm_ev))
     dist = float(2*max(abs(emax - eedge), abs(emin - eedge))) * 1.2
     expmax = np.log10(dist/2.)

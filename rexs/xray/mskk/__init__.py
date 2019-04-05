@@ -1,5 +1,5 @@
-from core import *
-from digest import *
+from .core import *
+from .digest import *
 
 __doc__ =  """
     The Module provides functions for performing a kramers-kronig transform

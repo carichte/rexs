@@ -108,7 +108,7 @@ class Transform(object):
                            weights=self.weights)
             fit.popt["func"] = self._f2func
         elif f2 is not None:
-            print np.diff(f2).argmax()
+            print(np.diff(f2).argmax())
             E0m = self.energy[np.diff(f2).argmax()]
             print("approximate measured edge: %g"%E0m)
             guess["E0"] = E0m - self.Eedge

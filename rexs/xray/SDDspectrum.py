@@ -60,13 +60,13 @@ class SDDspectrum(object):
                 transitions = deltaf.get_transition(element,  col='Direct')
                 pick = filter(lambda x: np.isfinite(transitions[x]), transitions.keys())
                 pick = filter(lambda x: transitions[x]>self.emin and transitions[x]<self.emax, pick)
-                edges = filter(lambda x: "edge" in x, pick)
-                lines = filter(lambda x: "edge" not in x, pick)
+                edges = [x for x in pick if "edge" in x]
+                lines = [x for x in pick if "edge" not in x]
                 for edge in edges:
-                    thislines = np.array(filter(lambda s: s.startswith(edge.split()[0]), lines))
+                    thislines = np.array([line for line in lines if line.startswith(edge.split()[0])])
                     thislineseV, ind = np.unique([transitions[line] for line in thislines], return_index=True)
                     thislines = thislines[ind]
-                    thislines = map(lambda s: element + "_" + s, thislines)
+                    thislines = ["%s_%s"%(element, line) for line in thislines]
                     self.add_edge(transitions[edge], element + "_" + edge.split()[0], thislineseV, names=thislines)
             
         
@@ -100,13 +100,13 @@ class SDDspectrum(object):
                                         * (special.erf((channels-C0-self.p["X"])/self.p["B"])+1)\
                                         + diverse.gaussian(channels, C0, abs(amp), w, 0)
         except:
-            print C0, w, amp
+            print((C0, w, amp))
             raise
     
     def __call__(self, x=None):
         if x is None: x = self.channels
         output = self.bg * np.ones(len(x))
-        for edge in self.edges.keys():
+        for edge in self.edges:
             if self.edges[edge] < (self.elastic - self.preedge):
                 for line in self.lines[edge]:
                     output += self.detector_response(x, line[1], self.strengths[edge]*line[2])
@@ -132,26 +132,26 @@ class SDDspectrum(object):
                                 (see self.lines.keys())
         """
         if shape=="all": 
-            shape = self.p.keys()
+            shape = list(self.p)
             shape.pop(shape.index("X"))
-        if strengths=="all": strengths = self.strengths.keys()
-        if ratios=="all": ratios = self.lines.keys()
+        if strengths=="all": strengths = list(self.strengths)
+        if ratios=="all": ratios = list(self.lines)
         self.ShapeVars = []
         self.StrengthVars = []
         self.RatioVars = []
         self.guess = []
         for key in shape:
-            if key in self.p.keys():
+            if key in self.p:
                 self.ShapeVars.append(key)
                 self.guess.append(self.p[key])
         for key in strengths:
             if self.strengths.has_key(key):
-                if (key in self.edges.keys() and self.edges[key] < (self.elastic - self.preedge))\
+                if (key in self.edges and self.edges[key] < (self.elastic - self.preedge))\
                 or  key in ["compton", "elastic"]:
                     self.StrengthVars.append(key)
                     self.guess.append(self.strengths[key])
             else:
-                print "Warning: Edge `%s` is not defined!" %key
+                print("Warning: Edge `%s` is not defined!" %key)
         for key in ratios:
             if self.edges.has_key(key)\
             and self.edges[key] < (self.elastic - self.preedge):
@@ -159,7 +159,7 @@ class SDDspectrum(object):
                 # ratio of first line always 1:
                 self.guess.extend([line[2] for line in self.lines[key][1:]])
             else:
-                print "Warning: Edge `%s` is not defined!" %key
+                print("Warning: Edge `%s` is not defined!" %key)
     
     def fitfunction(self, *t):
         x = t[0]
@@ -268,6 +268,7 @@ class SDDspectrum(object):
         err = (ResidualFunction(fp)**2).sum()
         if output[1] is None: stddev = [np.inf for i in range(len(self.guess))]
         else: stddev = [np.sqrt(var) for var in output[1].diagonal()] # Kovarianzmatrix
-        if verbose: print "Error at minimum: %f" %err
+        if verbose:
+            print("Error at minimum: %f" %err)
         return fp, stddev, err
 

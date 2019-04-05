@@ -14,8 +14,9 @@ import os
 import numpy as np
 import re
 import string
+from six import string_types, integer_types
 
-import diverse
+from . import diverse
 
 
 class scan1d(object):
@@ -41,7 +42,7 @@ class scan1d(object):
                 raise ValueError("Need input for 2nd argument (`fields').")
         assert hasattr(fields, "__iter__"), \
             "Need a sequence for argument #0 (fields)."
-        assert all([isinstance(name, (str, unicode)) for name in fields])
+        assert all([isinstance(name, string_types) for name in fields])
         units = []
         attr = []
         for i, field in enumerate(fields):
@@ -74,7 +75,7 @@ class scan1d(object):
         
         self.data = []
         
-        for i in xrange(self.numcols):
+        for i in range(self.numcols):
             if hasattr(dtypes, "__iter__"):
                 self.data.append(np.array(data[i], dtype = dtypes[i]))
             else:
@@ -92,7 +93,7 @@ class scan1d(object):
         if units is not None:
             assert hasattr(units, "__iter__"), \
                 "Need a sequence for argument units."
-            assert all([isinstance(name, (str, unicode)) for name in units])
+            assert all([isinstance(name, string_types) for name in units])
             assert len(units) == self.numcols, \
                 "Same length of `units' and `fields' required."
             self.units = map(str, units)
@@ -116,7 +117,7 @@ class scan1d(object):
             self.data[self._attr.index(attr)] = val
         elif attr=="x":
             self.data[0] = val
-        elif isinstance(attr, (int, long)):
+        elif isinstance(attr, integer_types):
             self.data[attr] = val
         else:
             self.__dict__[attr] = val
@@ -144,7 +145,7 @@ class scan1d(object):
     __setattr__ = __setitem__
     
     def __dir__(self):
-        return self.__dict__.keys() + dir(scan1d) + self._attr
+        return list(self.__dict__) + dir(scan1d) + self._attr
     
     def crop(self, ind):
         """
@@ -157,7 +158,7 @@ class scan1d(object):
                     The length has to agree with the length of the scan.
         """
         assert (ind.size==self.data[0].size), "Invalid length of `ind'."
-        for i in xrange(self.numcols):
+        for i in range(self.numcols):
             self.data[i] = self.data[i][ind]
     
     def normalize(self, col, action="divide"):
@@ -173,7 +174,7 @@ class scan1d(object):
                 collow = map(str.lower, self.fields)
                 thiscol = filter(lambda s: col.lower() in s, collow)
                 col = collow.index(thiscol[0])
-        for i in xrange(self.numcols):
+        for i in range(self.numcols):
             if i !=col and i!=0:
                 if action=="divide":
                     self.data[i] /= self.data[col]

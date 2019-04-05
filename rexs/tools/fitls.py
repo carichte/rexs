@@ -130,7 +130,7 @@ def fitls(x_m, y_m, func, guess, variables="all", power=1, weights=None,
     
     fitted_param = guess.copy()
     if variables=="all":
-        variables = guess.keys()
+        variables = list(guess)
     if fitalg=="leastsq":
         fitfunction, startvalues = wrap4leastsq.wrap_for_fit(residualswrap, guess, 
                                                       variables, unpack=False)

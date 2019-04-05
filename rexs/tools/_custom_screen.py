@@ -106,7 +106,7 @@ class Screen:
         mark = 8*"="
         items.append(mark)
         readonly.append(mark)
-        items+=submit.keys()
+        items += list(submit)
         buttons = dict([(v,k) for (k,v) in submit.iteritems()])
         key_unselect = kwargs.get("unselect", ord("-"))
         key_groupselect = kwargs.get("groupselect", ord("+"))
@@ -134,7 +134,7 @@ class Screen:
                 pos = len(items)-1
             return pos
         
-        digits = [ord(str(i)) for i in xrange(min(len(items), 9))]
+        digits = [ord(str(i)) for i in range(min(len(items), 9))]
         
         while True:
             self.win.clear()
@@ -191,13 +191,13 @@ class Screen:
             elif key == key_unselect:
                 del selected[:]
             elif key == key_groupselect:
-                for p in xrange(position, 0, -1):
+                for p in range(position, 0, -1):
                     if values[p] in selected:
                         break
                     else:
                         selected.append(values[p])
             elif key == key_groupunselect:
-                for p in xrange(position, 0, -1):
+                for p in range(position, 0, -1):
                     if values[p] in selected:
                         selected.remove(values[p])
                     else:

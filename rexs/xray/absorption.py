@@ -101,7 +101,7 @@ class Absorption(object):
         
         if Eedge is None:
             edges = deltaf.get_edge(resatom)
-            edges_inv = dict([(v,k) for (k,v) in edges.iteritems()])
+            edges_inv = dict([(v,k) for (k,v) in edges.items()])
             Eedges = edges.values()
             Eedges = filter(lambda E: (E > energy[0]) * (E < energy[-1]), Eedges)
             if len(Eedges)>1:
@@ -227,7 +227,7 @@ class Absorption(object):
             keyword arguments:
                 - all elements of self.p dictionary
         """
-        self.p.update(dict([i for i in kwargs.iteritems() if i[0] in self.p]))
+        self.p.update(dict([i for i in kwargs.items() if i[0] in self.p]))
         
         parts, omega = self.getomega()
         
@@ -272,7 +272,7 @@ class Absorption(object):
                 
                 The kwargs are all content of the self.p geometry parameters.
         """
-        self.p.update(dict([i for i in kwargs.iteritems() if i[0] in self.p]))
+        self.p.update(dict([i for i in kwargs.items() if i[0] in self.p]))
         
         if pol=="sigma":
             LP = 1.
@@ -314,7 +314,7 @@ class Absorption(object):
                 
                 The kwargs are all content of the self.p geometry parameters.
         """
-        self.p.update(dict([i for i in kwargs.iteritems() if i[0] in self.p]))
+        self.p.update(dict([i for i in kwargs.items() if i[0] in self.p]))
         
         parts, omega = self.getomega()
         
@@ -345,7 +345,7 @@ class Absorption(object):
             
             Returns total absorption coefficient.
         """
-        self.p.update(dict([i for i in kwargs.iteritems() if i[0] in self.p]))
+        self.p.update(dict([i for i in kwargs.items() if i[0] in self.p]))
         
         if muguess is None:
             muguess = self.muguess
@@ -404,7 +404,7 @@ class Absorption(object):
     
     
     def residuals(self, **p):
-        self.p.update(dict([i for i in p.iteritems() if i[0] in self.p]))
+        self.p.update(dict([i for i in p.items() if i[0] in self.p]))
         
         for key in ["d"]:
             self.p[key] = abs(self.p[key])
@@ -448,7 +448,7 @@ class Absorption(object):
             self.muguess = self.mu
             self.errmin = err
         self.err = err
-        print self.err, "\t", " ".join(["%s=%g"%i for i in self.p.iteritems()])
+        print((self.err, "\t", " ".join(["%s=%g"%i for i in self.p.items()])))
         if self.fitalg == "simplex":
             return err
         else:

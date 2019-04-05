@@ -34,7 +34,7 @@ class IterativeKK(object):
         self.f1tab, self.f2tab = {}, {}
         self.f1func, self.f2func = {}, {}
         self.Z = {}
-        for symbol in cs.f.keys():
+        for symbol in cs.f:
             if symbol.name.startswith("f_"):
                 self.f1[symbol] = cs.f[symbol].real.copy()
                 self.f2[symbol] = cs.f[symbol].imag.copy()
@@ -47,7 +47,7 @@ class IterativeKK(object):
         self.anchors = {}
         self.diff = {}
         self.debug = True
-        
+
     def AddFS(self, emin, emax, symbol, anchorpoints=None, w=10., f1func=None, f2func=None):
         element = symbol.name.split("_")[1]
         self.Z[symbol] = deltaf.elements.Z[element]
@@ -91,7 +91,7 @@ class IterativeKK(object):
             symbols = self.f1.iterkeys()
         allind = np.zeros(len(E), dtype=bool)
         for symbol in symbols:
-            if symbol in self.anchors.keys():
+            if symbol in self.anchors:
                 ax,ay = self.anchors[symbol]
             else:
                 ax, ay = None, None

@@ -10,8 +10,8 @@ import os
 
 
 from scipy import ndimage, integrate
-from PyMca import specfile as spec
-from PyMca import EdfFile
+from PyMca5 import specfile as spec
+from PyMca5 import EdfFile
 from collections import namedtuple, defaultdict, OrderedDict
 
 from ..tools import diverse
@@ -224,7 +224,7 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True,
         #print colname
         dat = scan.data()
         if stitch:
-            print dat.shape, scan2.data().shape
+            print((dat.shape, scan2.data().shape))
             dat = np.hstack((dat, scan2.data()))
         Energy.append(float(scan.header("Energy")[0].split()[1][:-1]))
         if monitor is not None:
@@ -306,7 +306,7 @@ def process_dafs_scans(specf, indizes, trapez=True, deglitch=True,
                 sumdata[col].append(coldata.sum()*dx)
     data = {"Energy":Energy}
     data.update(sumdata)
-    for key in data.keys():
+    for key in data:
         data[key] = np.array(data[key])
     if len(getall) and len(alldata["x"])>1:
         for key in alldata:

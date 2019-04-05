@@ -63,7 +63,7 @@ def BackgroundXRD(pattern, span=20, ftol=1e-4, maxiter=2500, nsigma=1,
         i+=1
         #print i, derr
     if verbose:
-        print "Number of Iterations: %i"%i
-        print "Final Relative Error: %g"%derr
+        print("Number of Iterations: %i"%i)
+        print("Final Relative Error: %g"%derr)
     return pattern[span:-span]
 

@@ -19,7 +19,6 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import urllib
 import sqlite3
 import re
 import collections
@@ -74,7 +73,7 @@ def get_components(compount, reduce_only=False):
     result = collections.defaultdict(float)
     for (k,v) in components:
         result[k] += myfloat(v)
-    return result.keys(), result.values()
+    return list(result), result.values()
 
 
 def get_f1f2_from_db(element, energy = None,
@@ -142,7 +141,7 @@ def get_element(element, database = _DB_PATH):
         cur.execute("SELECT density, molar_mass, element, Z FROM elements WHERE element = '%s'" % element)
     result=cur.fetchone()
     if not result:
-        print element
+        print(element)
         get_element_from_henke(element)
         cur.execute("SELECT density, molar_mass FROM elements WHERE element = '%s'" % element)
         result=cur.fetchone()

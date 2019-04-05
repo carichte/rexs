@@ -5,11 +5,17 @@
 #
 
 from __future__ import print_function
-import numpy as np
 import os
+import sys
 import time
 import locale
-import StringIO
+
+if sys.version_info[0]<3:
+    from StringIO import StringIO
+else:
+    from io import StringIO
+
+import numpy as np
 
 class FIOdata(object):
     """ 
@@ -156,7 +162,7 @@ class FIOdata(object):
         length = max([len(key) + len(format%val) 
                       for (key,val) in p.iteritems()])
         length += 2
-        for key in sorted(p.keys()):
+        for key in sorted(p):
             s += key + (length-len(key)-len(format%(p[key]))) * " " \
                      +  format%(p[key]) + os.linesep
         

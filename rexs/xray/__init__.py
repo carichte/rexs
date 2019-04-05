@@ -9,10 +9,10 @@
 # Copyright (c) 2015 Carsten Richter  All rights reserved.
 #----------------------------------------------------------------------
 
-import absorption
-import background
-import deltaf
-import interactions
+from . import absorption
+from . import background
+from . import deltaf
+from . import interactions
 #import itkk
 #import mskk
-import SDDspectrum
+from . import SDDspectrum
