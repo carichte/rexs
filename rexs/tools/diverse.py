@@ -4,7 +4,7 @@
 # this is part of the rexs package written by Carsten Richter
 # (carsten.richter@desy.de)
 #
-
+from __future__ import print_function
 import os
 import sys
 import time
@@ -13,7 +13,6 @@ from collections import OrderedDict
 import numpy as np
 from scipy import ndimage, optimize, special
 
-from .scantype import scan1d
 
 def norm(vector):
     #return np.sqrt((np.array(vector)**2).sum(0))

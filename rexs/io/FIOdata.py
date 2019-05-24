@@ -90,7 +90,7 @@ class FIOdata(object):
                         flag = False
                         break
                     line = data.readline()
-        numdata = StringIO.StringIO(line + data.read())
+        numdata = StringIO(line + data.read())
         data.close()
         self.data=np.loadtxt(numdata, comments="!")
         i=0
@@ -195,7 +195,6 @@ class FIOdata(object):
             string format plus 1 header line and stores it into the file 
             ``FILENAME`` or returns it as string.
         """
-        from StringIO import StringIO
         output = delimiter.join(self.colname) + "\n"
         outfile = StringIO()
         np.savetxt(outfile, self.data, fmt, delimiter)
