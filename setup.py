@@ -1,16 +1,21 @@
 #!/usr/bin/env python
 from numpy.distutils.core import setup, Extension
-import numpy
-import sys
+#from distutils.core import setup, Extension
+#from setuptools import setup, Extension
 
-if len(sys.argv)<2:
-    print("see install.txt for installation instructions.")
+#import numpy
+#import sys
+
+#if len(sys.argv)<2:
+#   print("see install.txt for installation instructions.")
 
 
 setup( name = "rexs", 
        version = "0.2",
        ext_modules = [Extension("rexs.xray.deltaf.deltaf", ["rexs/xray/deltaf/deltaf.f"]), 
-                      Extension("rexs.tools.rebin.librebin", ["rexs/tools/rebin/rebin.c"])],
+                      Extension("rexs.tools.rebin.librebin",
+                                ["rexs/tools/rebin/rebin.c"],
+                                export_symbols=["rebin", 'rebin_from_centers'])],
        packages = ["rexs", 
                    "rexs.xray", 
                    "rexs.xray.mskk", 

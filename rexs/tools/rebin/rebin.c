@@ -8,6 +8,10 @@
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 #include <stdlib.h>
 
+void PyInit_librebin() {} //Python 3.5
+void initlibrebin() {} //Python 2.7
+
+
 double* get_borders(double *x, int length) {
     int i;
     double *borders;
@@ -65,3 +69,5 @@ void rebin_from_centers(double *x, double *y, double *newx, double *newy, int le
     free(newborders);
     
 }
+
+
