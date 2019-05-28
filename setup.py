@@ -34,6 +34,10 @@ setup( name = "rexs",
        long_description = """
                              rexs - toolkit for evaluation of resonant x-ray 
                              scattering measurements
-                          """
+                          """,
+       install_requires=[
+              'numpy',
+              'scipy'
+              ],
      )
 

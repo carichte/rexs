@@ -162,7 +162,7 @@ class Screen:
                 if item not in (list(submit) + [mark]):
                     self.win.addstr(1+index-start, 1, '%d.'%index, mode)
                 self.win.addstr(1+index-start, space1, '%s'%item, mode)
-                if selected not is None and item in selected:
+                if not selected is None and item in selected:
                     self.win.addstr(1+index-start, 0, "*", curses.A_BOLD)
                 if item in info and showall:
                     iteminfo = info[item]
@@ -212,7 +212,7 @@ class Screen:
                 return action
             elif values[position] in readonly:
                 continue
-            elif key in [ord(' ')] and selected not is None:
+            elif key in [ord(' ')] and not selected is None:
                 if values[position] in submit:
                     continue
                 elif values[position] in selected:
