@@ -164,7 +164,7 @@ class FIOdata(object):
         s=""
         p = self.parameters
         length = max([len(key) + len(format%val) 
-                      for (key,val) in p.iteritems()])
+                      for (key,val) in p.items()])
         length += 2
         for key in sorted(p):
             s += key + (length-len(key)-len(format%(p[key]))) * " " \
