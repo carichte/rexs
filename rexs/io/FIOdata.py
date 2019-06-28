@@ -78,7 +78,11 @@ class FIOdata(object):
                     elif not line: break
                     line=line.replace(" ","")
                     [param, value]=line.split("=")
-                    self.parameters[param]=float(value)
+                    try:
+                        value = float(value)
+                    except:
+                        pass
+                    self.parameters[param] = value
                     line = data.readline()
             if "%d" in line:
                 line = data.readline()
