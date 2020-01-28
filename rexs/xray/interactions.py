@@ -73,7 +73,7 @@ def get_components(compount, reduce_only=False):
     result = collections.defaultdict(float)
     for (k,v) in components:
         result[k] += myfloat(v)
-    return list(result), result.values()
+    return list(result), list(result.values())
 
 
 def get_f1f2_from_db(element, energy = None,
