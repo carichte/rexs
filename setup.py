@@ -38,7 +38,6 @@ setup( name = "rexs",
        install_requires=[
               'numpy',
               'scipy',
-              'sqlite3'
               ],
      )
 
