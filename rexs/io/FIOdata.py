@@ -130,8 +130,9 @@ class FIOdata(object):
             self.startsec = time.mktime(self.starttime)
             self.stopsec = time.mktime(self.stoptime)
         except Exception as err:
-            print("Warning: starting or stopping time of scan could not be",
-                  "determined: ", err)
+            if verbose:
+                print("Warning: starting or stopping time of scan could not be",
+                      "determined: ", err)
             self.starttime = np.nan
             self.stoptime = np.nan
             self.startsec = np.nan
